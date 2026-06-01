@@ -1,0 +1,599 @@
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
+import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/environments/RoomEnvironment.js";
+
+const DEFAULT_BEND_ANGLE = Number(((10 / 34) * (180 / Math.PI)).toFixed(2));
+const FONT_OPTIONS = ["Orbitron", "Cinzel", "Rajdhani", "Montserrat", "Oswald", "Playfair Display", "Bebas Neue"];
+const MATERIAL_PRESETS = { silver: "#c6ccd1", gold: "#cda349" };
+const CORNER_MODES = ["none", "all", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
+
+const PARAM_DEFAULTS = {
+    plate: {
+        materialPreset: "silver",
+        color: MATERIAL_PRESETS.silver,
+        shininess: 66,
+        width: 10,
+        height: 1,
+        depth: 0.26,
+        bendAngle: DEFAULT_BEND_ANGLE,
+        cornerRadius: 0,
+        cornerMode: "none"
+    },
+    front: { text: "FRONT TEXT", font: "Orbitron", fs: 124, ls: 2, fw: 700, fst: "normal", tt: "none", mt: 12, mr: 120, mb: 12, ml: 120 },
+    back: { text: "BACK TEXT", font: "Cinzel", fs: 98, ls: 1, fw: 600, fst: "normal", tt: "none", mt: 12, mr: 120, mb: 12, ml: 120 }
+};
+
+const LIMITS = {
+    fs: [32, 280], ls: [-50, 300], fw: [100, 900], mt: [0, 180], mr: [0, 500], mb: [0, 180], ml: [0, 500],
+    shininess: [0, 100], width: [4, 20], height: [0.4, 4], depth: [0.08, 1.2], bendAngle: [0, 120], cornerRadius: [0, 2]
+};
+
+const app = document.getElementById("app");
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x000000, 1);
+app.appendChild(renderer.domElement);
+
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 3.2, 23);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 12;
+controls.maxDistance = 40;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+scene.add(new THREE.HemisphereLight(0xdde7ff, 0x1c1c1c, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(12, 7, 12); scene.add(key);
+const lf = new THREE.DirectionalLight(0xe9f1ff, 0.85); lf.position.set(-14, 2, 8); scene.add(lf);
+const rf = new THREE.DirectionalLight(0xfff7eb, 0.85); rf.position.set(14, 2, 8); scene.add(rf);
+const tf = new THREE.DirectionalLight(0xffffff, 0.55); tf.position.set(0, 11, 2); scene.add(tf);
+const rim = new THREE.DirectionalLight(0xffffff, 0.65); rim.position.set(0, 5, -11); scene.add(rim);
+
+const ui = {
+    plate: {
+        materialPreset: document.getElementById("plateMaterialPreset"),
+        color: document.getElementById("plateColor"),
+        shininess: document.getElementById("plateShininess"), shininessOut: document.getElementById("plateShininessOut"),
+        width: document.getElementById("plateWidth"), widthOut: document.getElementById("plateWidthOut"),
+        height: document.getElementById("plateHeight"), heightOut: document.getElementById("plateHeightOut"),
+        depth: document.getElementById("plateDepth"), depthOut: document.getElementById("plateDepthOut"),
+        bendAngle: document.getElementById("plateBendAngle"), bendAngleOut: document.getElementById("plateBendAngleOut"),
+        cornerRadius: document.getElementById("plateCornerRadius"), cornerRadiusOut: document.getElementById("plateCornerRadiusOut"),
+        cornerMode: document.getElementById("plateCornerMode")
+    },
+    front: {
+        text: document.getElementById("frontText"), fontPreset: document.getElementById("frontFontPreset"), fontFamily: document.getElementById("frontFontFamily"),
+        fontSize: document.getElementById("frontFontSize"), fontSizeOut: document.getElementById("frontFontSizeOut"),
+        letterSpacing: document.getElementById("frontLetterSpacing"), letterSpacingOut: document.getElementById("frontLetterSpacingOut"),
+        fontWeight: document.getElementById("frontFontWeight"), fontWeightOut: document.getElementById("frontFontWeightOut"),
+        fontStyle: document.getElementById("frontFontStyle"), textTransform: document.getElementById("frontTextTransform"),
+        marginTop: document.getElementById("frontMarginTop"), marginTopOut: document.getElementById("frontMarginTopOut"),
+        marginRight: document.getElementById("frontMarginRight"), marginRightOut: document.getElementById("frontMarginRightOut"),
+        marginBottom: document.getElementById("frontMarginBottom"), marginBottomOut: document.getElementById("frontMarginBottomOut"),
+        marginLeft: document.getElementById("frontMarginLeft"), marginLeftOut: document.getElementById("frontMarginLeftOut")
+    },
+    back: {
+        text: document.getElementById("backText"), fontPreset: document.getElementById("backFontPreset"), fontFamily: document.getElementById("backFontFamily"),
+        fontSize: document.getElementById("backFontSize"), fontSizeOut: document.getElementById("backFontSizeOut"),
+        letterSpacing: document.getElementById("backLetterSpacing"), letterSpacingOut: document.getElementById("backLetterSpacingOut"),
+        fontWeight: document.getElementById("backFontWeight"), fontWeightOut: document.getElementById("backFontWeightOut"),
+        fontStyle: document.getElementById("backFontStyle"), textTransform: document.getElementById("backTextTransform"),
+        marginTop: document.getElementById("backMarginTop"), marginTopOut: document.getElementById("backMarginTopOut"),
+        marginRight: document.getElementById("backMarginRight"), marginRightOut: document.getElementById("backMarginRightOut"),
+        marginBottom: document.getElementById("backMarginBottom"), marginBottomOut: document.getElementById("backMarginBottomOut"),
+        marginLeft: document.getElementById("backMarginLeft"), marginLeftOut: document.getElementById("backMarginLeftOut")
+    }
+};
+
+const state = readStateFromUrl();
+hydrateUiFromState();
+loadGoogleFont(state.front.font, "front");
+loadGoogleFont(state.back.font, "back");
+
+let plateMesh = buildPlate();
+updatePlateTextures();
+updateUrlFromState();
+
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+function toNumber(raw, fallback, min, max) {
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n)) { return fallback; }
+    return clamp(n, min, max);
+}
+function sanitizeFontFamily(v) {
+    const clean = String(v || "").replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+    return clean || PARAM_DEFAULTS.front.font;
+}
+function sanitizeHex(v, fallback) {
+    const c = String(v || "").trim();
+    return /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : fallback;
+}
+function format(n, decimals) {
+    return Number(n).toFixed(decimals).replace(/\.0+$|(?<=\..*?)0+$/g, "");
+}
+
+function applyTextTransform(text, transform) {
+    if (transform === "uppercase") { return text.toUpperCase(); }
+    if (transform === "lowercase") { return text.toLowerCase(); }
+    if (transform === "capitalize") { return text.replace(/\b(\w)/g, (m) => m.toUpperCase()); }
+    return text;
+}
+
+function getMaxCornerRadius() {
+    return Math.max(0, Math.min(state.plate.width, state.plate.height) / 2 - 0.001);
+}
+
+function syncCornerRadiusRange() {
+    const max = getMaxCornerRadius();
+    ui.plate.cornerRadius.max = String(max > 0 ? max : 0.01);
+    state.plate.cornerRadius = clamp(state.plate.cornerRadius, 0, max);
+    ui.plate.cornerRadius.value = String(state.plate.cornerRadius);
+}
+
+function normalizePlatePreset() {
+    if (state.plate.materialPreset === "silver") { state.plate.color = MATERIAL_PRESETS.silver; }
+    if (state.plate.materialPreset === "gold") { state.plate.color = MATERIAL_PRESETS.gold; }
+}
+
+function loadGoogleFont(fontFamily, side) {
+    const fontId = `dynamic-google-font-${side}`;
+    const encoded = fontFamily.trim().replace(/\s+/g, "+");
+    const href = `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap`;
+    let fontLink = document.getElementById(fontId);
+    if (!fontLink) {
+        fontLink = document.createElement("link");
+        fontLink.id = fontId;
+        fontLink.rel = "stylesheet";
+        document.head.appendChild(fontLink);
+    }
+    if (fontLink.getAttribute("href") !== href) { fontLink.setAttribute("href", href); }
+}
+
+function colorLightened(hex, amount) {
+    const color = new THREE.Color(hex);
+    color.lerp(new THREE.Color("#ffffff"), amount);
+    return `#${color.getHexString()}`;
+}
+
+function measureSpacedText(ctx, text, spacing) {
+    if (!text.length) { return 0; }
+    let width = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        width += ctx.measureText(text[i]).width;
+        if (i < text.length - 1) { width += spacing; }
+    }
+    return width;
+}
+
+function drawTextWithLetterSpacing(ctx, text, x, y, spacing) {
+    let cursorX = x;
+    for (let i = 0; i < text.length; i += 1) {
+        const glyph = text[i];
+        ctx.fillText(glyph, cursorX, y);
+        cursorX += ctx.measureText(glyph).width + spacing;
+    }
+}
+
+function createFaceTexture(side) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 4096;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    const s = state[side];
+    const textColor = side === "front" ? "#111111" : "#1a1a1a";
+    const faceColor = colorLightened(state.plate.color, 0.18);
+
+    const usableWidth = Math.max(32, canvas.width - s.ml - s.mr);
+    const usableHeight = Math.max(32, canvas.height - s.mt - s.mb);
+    const centerX = s.ml + usableWidth / 2;
+    const centerY = s.mt + usableHeight / 2;
+
+    const text = applyTextTransform(s.text, s.tt);
+    ctx.fillStyle = faceColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = textColor;
+    ctx.font = `${s.fst} ${s.fw} ${s.fs}px "${s.font}"`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const textWidth = measureSpacedText(ctx, text, s.ls);
+    drawTextWithLetterSpacing(ctx, text, centerX - textWidth / 2, centerY, s.ls);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.needsUpdate = true;
+    return texture;
+}
+
+function getCornerRadii(mode, radius) {
+    const r = { tl: 0, tr: 0, bl: 0, br: 0 };
+    if (radius <= 0 || mode === "none") { return r; }
+    if (mode === "all") { r.tl = r.tr = r.bl = r.br = radius; }
+    if (mode === "top") { r.tl = r.tr = radius; }
+    if (mode === "bottom") { r.bl = r.br = radius; }
+    if (mode === "left") { r.tl = r.bl = radius; }
+    if (mode === "right") { r.tr = r.br = radius; }
+    if (mode === "top-left") { r.tl = radius; }
+    if (mode === "top-right") { r.tr = radius; }
+    if (mode === "bottom-left") { r.bl = radius; }
+    if (mode === "bottom-right") { r.br = radius; }
+    return r;
+}
+
+function applyCornerRadius(geometry, width, height, radius, mode) {
+    const rr = getCornerRadii(mode, clamp(radius, 0, Math.min(width, height) / 2));
+    if (rr.tl === 0 && rr.tr === 0 && rr.bl === 0 && rr.br === 0) { return; }
+
+    const hw = width / 2;
+    const hh = height / 2;
+    const pos = geometry.attributes.position;
+
+    const corners = [
+        { key: "tl", cx: -hw + rr.tl, cy: hh - rr.tl, sx: -1, sy: 1 },
+        { key: "tr", cx: hw - rr.tr, cy: hh - rr.tr, sx: 1, sy: 1 },
+        { key: "bl", cx: -hw + rr.bl, cy: -hh + rr.bl, sx: -1, sy: -1 },
+        { key: "br", cx: hw - rr.br, cy: -hh + rr.br, sx: 1, sy: -1 }
+    ];
+
+    for (let i = 0; i < pos.count; i += 1) {
+        let x = pos.getX(i);
+        let y = pos.getY(i);
+
+        for (const c of corners) {
+            const r = rr[c.key];
+            if (r <= 0) { continue; }
+            const inX = c.sx > 0 ? x > c.cx : x < c.cx;
+            const inY = c.sy > 0 ? y > c.cy : y < c.cy;
+            if (!inX || !inY) { continue; }
+
+            const dx = x - c.cx;
+            const dy = y - c.cy;
+            const len = Math.hypot(dx, dy);
+            if (len > r && len > 0) {
+                const sc = r / len;
+                x = c.cx + dx * sc;
+                y = c.cy + dy * sc;
+                pos.setX(i, x);
+                pos.setY(i, y);
+            }
+            break;
+        }
+    }
+    pos.needsUpdate = true;
+}
+
+function applyBend(geometry, width, angleDeg) {
+    const angle = THREE.MathUtils.degToRad(angleDeg);
+    if (Math.abs(angle) < 0.0001) {
+        geometry.computeVertexNormals();
+        return;
+    }
+    const radius = width / angle;
+    const pos = geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += 1) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        const t = x / radius;
+        pos.setX(i, Math.sin(t) * radius);
+        pos.setZ(i, Math.cos(t) * radius - radius + z);
+    }
+    pos.needsUpdate = true;
+    geometry.computeVertexNormals();
+}
+
+function materialPropsFromShininess(sh) {
+    const t = clamp(sh, 0, 100) / 100;
+    return {
+        roughness: clamp(0.92 - 0.82 * t, 0.08, 0.95),
+        clearcoat: clamp(0.2 + 0.7 * t, 0, 1),
+        clearcoatRoughness: clamp(0.5 - 0.4 * t, 0.04, 0.7),
+        envMapIntensity: clamp(0.8 + 1.4 * t, 0.4, 3)
+    };
+}
+
+function createPlateMaterials() {
+    const props = materialPropsFromShininess(state.plate.shininess);
+    const side = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(state.plate.color),
+        metalness: 1,
+        roughness: props.roughness,
+        clearcoat: props.clearcoat,
+        clearcoatRoughness: props.clearcoatRoughness,
+        envMapIntensity: props.envMapIntensity
+    });
+    const front = side.clone();
+    const back = side.clone();
+    return [side, side, side, side, front, back];
+}
+
+function createPlateGeometry() {
+    const g = new THREE.BoxGeometry(state.plate.width, state.plate.height, state.plate.depth, 140, 16, 8);
+    applyCornerRadius(g, state.plate.width, state.plate.height, state.plate.cornerRadius, state.plate.cornerMode);
+    applyBend(g, state.plate.width, state.plate.bendAngle);
+    return g;
+}
+
+function buildPlate() {
+    const mesh = new THREE.Mesh(createPlateGeometry(), createPlateMaterials());
+    mesh.rotation.x = -0.22;
+    mesh.rotation.y = 0.35;
+    scene.add(mesh);
+    return mesh;
+}
+
+function disposePlate(mesh) {
+    if (!mesh) { return; }
+    scene.remove(mesh);
+    if (mesh.geometry) { mesh.geometry.dispose(); }
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((m) => {
+        if (m.map) { m.map.dispose(); }
+        m.dispose();
+    });
+}
+
+function rebuildPlate() {
+    disposePlate(plateMesh);
+    plateMesh = buildPlate();
+}
+
+function replaceMaterialMap(material, texture) {
+    if (material.map) { material.map.dispose(); }
+    material.map = texture;
+    material.needsUpdate = true;
+}
+
+function updatePlateTextures() {
+    replaceMaterialMap(plateMesh.material[4], createFaceTexture("front"));
+    replaceMaterialMap(plateMesh.material[5], createFaceTexture("back"));
+}
+
+function readSide(search, side) {
+    const prefix = side === "front" ? "f" : "b";
+    const d = PARAM_DEFAULTS[side];
+    const legacyText = side === "front" ? search.get("front") : search.get("back");
+    const legacyFont = search.get("font");
+    const legacyFs = search.get("fs");
+    const legacyLs = search.get("ls");
+    const legacyFw = search.get("fw");
+    const legacyFst = search.get("fst");
+    const legacyTt = search.get("tt");
+    const legacyMt = search.get("mt");
+    const legacyMr = search.get("mr");
+    const legacyMb = search.get("mb");
+    const legacyMl = search.get("ml");
+    const tt = search.get(`${prefix}_tt`) || legacyTt;
+
+    return {
+        text: (search.get(`${prefix}_text`) || legacyText || d.text).slice(0, 40),
+        font: sanitizeFontFamily(search.get(`${prefix}_font`) || legacyFont || d.font),
+        fs: toNumber(search.get(`${prefix}_fs`) || legacyFs, d.fs, LIMITS.fs[0], LIMITS.fs[1]),
+        ls: toNumber(search.get(`${prefix}_ls`) || legacyLs, d.ls, LIMITS.ls[0], LIMITS.ls[1]),
+        fw: toNumber(search.get(`${prefix}_fw`) || legacyFw, d.fw, LIMITS.fw[0], LIMITS.fw[1]),
+        fst: (search.get(`${prefix}_fst`) || legacyFst) === "italic" ? "italic" : "normal",
+        tt: ["none", "uppercase", "lowercase", "capitalize"].includes(tt) ? tt : "none",
+        mt: toNumber(search.get(`${prefix}_mt`) || legacyMt, d.mt, LIMITS.mt[0], LIMITS.mt[1]),
+        mr: toNumber(search.get(`${prefix}_mr`) || legacyMr, d.mr, LIMITS.mr[0], LIMITS.mr[1]),
+        mb: toNumber(search.get(`${prefix}_mb`) || legacyMb, d.mb, LIMITS.mb[0], LIMITS.mb[1]),
+        ml: toNumber(search.get(`${prefix}_ml`) || legacyMl, d.ml, LIMITS.ml[0], LIMITS.ml[1])
+    };
+}
+
+function readPlate(search) {
+    const d = PARAM_DEFAULTS.plate;
+    const materialPreset = ["silver", "gold", "custom"].includes(search.get("p_mat")) ? search.get("p_mat") : d.materialPreset;
+    const color = sanitizeHex(search.get("p_col") || d.color, d.color);
+    const cornerMode = CORNER_MODES.includes(search.get("p_cm")) ? search.get("p_cm") : d.cornerMode;
+    const plate = {
+        materialPreset,
+        color,
+        shininess: toNumber(search.get("p_sh"), d.shininess, LIMITS.shininess[0], LIMITS.shininess[1]),
+        width: toNumber(search.get("p_w"), d.width, LIMITS.width[0], LIMITS.width[1]),
+        height: toNumber(search.get("p_h"), d.height, LIMITS.height[0], LIMITS.height[1]),
+        depth: toNumber(search.get("p_d"), d.depth, LIMITS.depth[0], LIMITS.depth[1]),
+        bendAngle: toNumber(search.get("p_ba"), d.bendAngle, LIMITS.bendAngle[0], LIMITS.bendAngle[1]),
+        cornerRadius: toNumber(search.get("p_cr"), d.cornerRadius, LIMITS.cornerRadius[0], LIMITS.cornerRadius[1]),
+        cornerMode
+    };
+    if (plate.materialPreset === "silver") { plate.color = MATERIAL_PRESETS.silver; }
+    if (plate.materialPreset === "gold") { plate.color = MATERIAL_PRESETS.gold; }
+    plate.cornerRadius = clamp(plate.cornerRadius, 0, Math.max(0, Math.min(plate.width, plate.height) / 2 - 0.001));
+    return plate;
+}
+
+function readStateFromUrl() {
+    const search = new URLSearchParams(window.location.search);
+    return { plate: readPlate(search), front: readSide(search, "front"), back: readSide(search, "back") };
+}
+
+function hydrateUiFromState() {
+    const p = state.plate;
+    ui.plate.materialPreset.value = p.materialPreset;
+    ui.plate.color.value = p.color;
+    ui.plate.shininess.value = String(p.shininess);
+    ui.plate.width.value = String(p.width);
+    ui.plate.height.value = String(p.height);
+    ui.plate.depth.value = String(p.depth);
+    ui.plate.bendAngle.value = String(p.bendAngle);
+    ui.plate.cornerRadius.value = String(p.cornerRadius);
+    ui.plate.cornerMode.value = p.cornerMode;
+
+    ["front", "back"].forEach((side) => {
+        const s = state[side];
+        const u = ui[side];
+        u.text.value = s.text;
+        u.fontPreset.value = FONT_OPTIONS.includes(s.font) ? s.font : "";
+        u.fontFamily.value = s.font;
+        u.fontSize.value = String(s.fs);
+        u.letterSpacing.value = String(s.ls);
+        u.fontWeight.value = String(s.fw);
+        u.fontStyle.value = s.fst;
+        u.textTransform.value = s.tt;
+        u.marginTop.value = String(s.mt);
+        u.marginRight.value = String(s.mr);
+        u.marginBottom.value = String(s.mb);
+        u.marginLeft.value = String(s.ml);
+    });
+
+    syncCornerRadiusRange();
+    syncOutputLabels();
+}
+
+function readStateFromUi() {
+    const p = state.plate;
+    p.materialPreset = ["silver", "gold", "custom"].includes(ui.plate.materialPreset.value) ? ui.plate.materialPreset.value : "silver";
+    p.color = sanitizeHex(ui.plate.color.value, PARAM_DEFAULTS.plate.color);
+    p.shininess = toNumber(ui.plate.shininess.value, PARAM_DEFAULTS.plate.shininess, LIMITS.shininess[0], LIMITS.shininess[1]);
+    p.width = toNumber(ui.plate.width.value, PARAM_DEFAULTS.plate.width, LIMITS.width[0], LIMITS.width[1]);
+    p.height = toNumber(ui.plate.height.value, PARAM_DEFAULTS.plate.height, LIMITS.height[0], LIMITS.height[1]);
+    p.depth = toNumber(ui.plate.depth.value, PARAM_DEFAULTS.plate.depth, LIMITS.depth[0], LIMITS.depth[1]);
+    p.bendAngle = toNumber(ui.plate.bendAngle.value, PARAM_DEFAULTS.plate.bendAngle, LIMITS.bendAngle[0], LIMITS.bendAngle[1]);
+    p.cornerRadius = toNumber(ui.plate.cornerRadius.value, PARAM_DEFAULTS.plate.cornerRadius, LIMITS.cornerRadius[0], LIMITS.cornerRadius[1]);
+    p.cornerMode = CORNER_MODES.includes(ui.plate.cornerMode.value) ? ui.plate.cornerMode.value : "none";
+    normalizePlatePreset();
+    syncCornerRadiusRange();
+
+    ["front", "back"].forEach((side) => {
+        const s = state[side];
+        const u = ui[side];
+        const d = PARAM_DEFAULTS[side];
+        s.text = u.text.value.slice(0, 40);
+        s.font = sanitizeFontFamily(u.fontFamily.value || u.fontPreset.value);
+        s.fs = toNumber(u.fontSize.value, d.fs, LIMITS.fs[0], LIMITS.fs[1]);
+        s.ls = toNumber(u.letterSpacing.value, d.ls, LIMITS.ls[0], LIMITS.ls[1]);
+        s.fw = toNumber(u.fontWeight.value, d.fw, LIMITS.fw[0], LIMITS.fw[1]);
+        s.fst = u.fontStyle.value === "italic" ? "italic" : "normal";
+        s.tt = ["none", "uppercase", "lowercase", "capitalize"].includes(u.textTransform.value) ? u.textTransform.value : "none";
+        s.mt = toNumber(u.marginTop.value, d.mt, LIMITS.mt[0], LIMITS.mt[1]);
+        s.mr = toNumber(u.marginRight.value, d.mr, LIMITS.mr[0], LIMITS.mr[1]);
+        s.mb = toNumber(u.marginBottom.value, d.mb, LIMITS.mb[0], LIMITS.mb[1]);
+        s.ml = toNumber(u.marginLeft.value, d.ml, LIMITS.ml[0], LIMITS.ml[1]);
+    });
+}
+
+function syncOutputLabels() {
+    const p = state.plate;
+    ui.plate.shininessOut.value = format(p.shininess, 0);
+    ui.plate.widthOut.value = format(p.width, 2);
+    ui.plate.heightOut.value = format(p.height, 2);
+    ui.plate.depthOut.value = format(p.depth, 2);
+    ui.plate.bendAngleOut.value = format(p.bendAngle, 2);
+    ui.plate.cornerRadiusOut.value = format(p.cornerRadius, 2);
+    ui.plate.color.value = p.color;
+
+    ["front", "back"].forEach((side) => {
+        const s = state[side];
+        const u = ui[side];
+        u.fontSizeOut.value = format(s.fs, 0);
+        u.letterSpacingOut.value = format(s.ls, 1);
+        u.fontWeightOut.value = format(s.fw, 0);
+        u.marginTopOut.value = format(s.mt, 0);
+        u.marginRightOut.value = format(s.mr, 0);
+        u.marginBottomOut.value = format(s.mb, 0);
+        u.marginLeftOut.value = format(s.ml, 0);
+    });
+}
+
+function updateUrlFromState() {
+    const p = state.plate;
+    const params = new URLSearchParams();
+    params.set("p_mat", p.materialPreset);
+    params.set("p_col", p.color);
+    params.set("p_sh", String(p.shininess));
+    params.set("p_w", String(p.width));
+    params.set("p_h", String(p.height));
+    params.set("p_d", String(p.depth));
+    params.set("p_ba", String(p.bendAngle));
+    params.set("p_cr", String(p.cornerRadius));
+    params.set("p_cm", p.cornerMode);
+
+    ["front", "back"].forEach((side) => {
+        const prefix = side === "front" ? "f" : "b";
+        const s = state[side];
+        params.set(`${prefix}_text`, s.text);
+        params.set(`${prefix}_font`, s.font);
+        params.set(`${prefix}_fs`, String(s.fs));
+        params.set(`${prefix}_ls`, String(s.ls));
+        params.set(`${prefix}_fw`, String(s.fw));
+        params.set(`${prefix}_fst`, s.fst);
+        params.set(`${prefix}_tt`, s.tt);
+        params.set(`${prefix}_mt`, String(s.mt));
+        params.set(`${prefix}_mr`, String(s.mr));
+        params.set(`${prefix}_mb`, String(s.mb));
+        params.set(`${prefix}_ml`, String(s.ml));
+    });
+
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+
+function applyAllParams() {
+    readStateFromUi();
+    loadGoogleFont(state.front.font, "front");
+    loadGoogleFont(state.back.font, "back");
+    syncOutputLabels();
+    rebuildPlate();
+    updatePlateTextures();
+    updateUrlFromState();
+}
+
+function bindSideEvents(side) {
+    const u = ui[side];
+    const controls = [u.text, u.fontPreset, u.fontFamily, u.fontSize, u.letterSpacing, u.fontWeight, u.fontStyle, u.textTransform, u.marginTop, u.marginRight, u.marginBottom, u.marginLeft];
+    controls.forEach((el) => {
+        const eventName = el.tagName === "INPUT" && el.type === "range" ? "input" : "change";
+        el.addEventListener(eventName, () => {
+            if (el === u.fontPreset && u.fontPreset.value) { u.fontFamily.value = u.fontPreset.value; }
+            if (el === u.fontFamily) { u.fontPreset.value = FONT_OPTIONS.includes(u.fontFamily.value) ? u.fontFamily.value : ""; }
+            applyAllParams();
+        });
+        if (el.tagName === "INPUT" && el.type === "text") {
+            el.addEventListener("input", () => {
+                if (el === u.fontFamily) { u.fontPreset.value = FONT_OPTIONS.includes(u.fontFamily.value) ? u.fontFamily.value : ""; }
+                applyAllParams();
+            });
+        }
+    });
+}
+
+function bindEvents() {
+    const plateControls = [ui.plate.materialPreset, ui.plate.color, ui.plate.shininess, ui.plate.width, ui.plate.height, ui.plate.depth, ui.plate.bendAngle, ui.plate.cornerRadius, ui.plate.cornerMode];
+    plateControls.forEach((el) => {
+        const eventName = el.tagName === "INPUT" && el.type === "range" ? "input" : "change";
+        el.addEventListener(eventName, () => {
+            if (el === ui.plate.materialPreset && ui.plate.materialPreset.value !== "custom") {
+                ui.plate.color.value = MATERIAL_PRESETS[ui.plate.materialPreset.value];
+            }
+            if (el === ui.plate.color && ui.plate.materialPreset.value !== "custom") {
+                ui.plate.materialPreset.value = "custom";
+            }
+            applyAllParams();
+        });
+    });
+    bindSideEvents("front");
+    bindSideEvents("back");
+}
+
+bindEvents();
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+}
+animate();
