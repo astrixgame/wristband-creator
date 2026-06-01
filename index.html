@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>3D Wristband Plate Demo</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Orbitron:wght@400;500;700&family=Rajdhani:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        >
+        <link rel="stylesheet" href="style.css">
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <aside id="panel">
+            <h1>Plate Params</h1>
+
+            <section class="side-section">
+                <h2>Front Side</h2>
+
+                <label>
+                    Text
+                    <input id="frontText" type="text" value="ASTRIX" maxlength="40">
+                </label>
+
+                <label>
+                    Google font
+                    <select id="frontFontPreset">
+                        <option value="">Custom</option>
+                        <option value="Orbitron">Orbitron</option>
+                        <option value="Cinzel">Cinzel</option>
+                        <option value="Rajdhani">Rajdhani</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Playfair Display">Playfair Display</option>
+                        <option value="Bebas Neue">Bebas Neue</option>
+                    </select>
+                </label>
+
+                <label>
+                    Custom font family
+                    <input id="frontFontFamily" type="text" value="Orbitron" placeholder="Example: Space Grotesk">
+                </label>
+
+                <label>
+                    Font size
+                    <input id="frontFontSize" type="range" min="32" max="280" step="1" value="124">
+                    <output id="frontFontSizeOut">124</output>
+                </label>
+
+                <label>
+                    Letter spacing
+                    <input id="frontLetterSpacing" type="range" min="-50" max="300" step="0.5" value="2">
+                    <output id="frontLetterSpacingOut">2</output>
+                </label>
+
+                <label>
+                    Font weight
+                    <input id="frontFontWeight" type="range" min="100" max="900" step="100" value="700">
+                    <output id="frontFontWeightOut">700</output>
+                </label>
+
+                <label>
+                    Font style
+                    <select id="frontFontStyle">
+                        <option value="normal">normal</option>
+                        <option value="italic">italic</option>
+                    </select>
+                </label>
+
+                <label>
+                    Text transform
+                    <select id="frontTextTransform">
+                        <option value="none">none</option>
+                        <option value="uppercase">uppercase</option>
+                        <option value="lowercase">lowercase</option>
+                        <option value="capitalize">capitalize</option>
+                    </select>
+                </label>
+
+                <div class="margin-grid">
+                    <h3>Margins (texture px)</h3>
+
+                    <label>
+                        Top
+                        <input id="frontMarginTop" type="range" min="0" max="180" step="1" value="12">
+                        <output id="frontMarginTopOut">12</output>
+                    </label>
+
+                    <label>
+                        Right
+                        <input id="frontMarginRight" type="range" min="0" max="500" step="1" value="120">
+                        <output id="frontMarginRightOut">120</output>
+                    </label>
+
+                    <label>
+                        Bottom
+                        <input id="frontMarginBottom" type="range" min="0" max="180" step="1" value="12">
+                        <output id="frontMarginBottomOut">12</output>
+                    </label>
+
+                    <label>
+                        Left
+                        <input id="frontMarginLeft" type="range" min="0" max="500" step="1" value="120">
+                        <output id="frontMarginLeftOut">120</output>
+                    </label>
+                </div>
+            </section>
+
+            <section class="side-section">
+                <h2>Back Side</h2>
+
+                <label>
+                    Text
+                    <input id="backText" type="text" value="EST. 2026" maxlength="40">
+                </label>
+
+                <label>
+                    Google font
+                    <select id="backFontPreset">
+                        <option value="">Custom</option>
+                        <option value="Orbitron">Orbitron</option>
+                        <option value="Cinzel">Cinzel</option>
+                        <option value="Rajdhani">Rajdhani</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Playfair Display">Playfair Display</option>
+                        <option value="Bebas Neue">Bebas Neue</option>
+                    </select>
+                </label>
+
+                <label>
+                    Custom font family
+                    <input id="backFontFamily" type="text" value="Cinzel" placeholder="Example: Space Grotesk">
+                </label>
+
+                <label>
+                    Font size
+                    <input id="backFontSize" type="range" min="32" max="280" step="1" value="98">
+                    <output id="backFontSizeOut">98</output>
+                </label>
+
+                <label>
+                    Letter spacing
+                    <input id="backLetterSpacing" type="range" min="-50" max="300" step="0.5" value="1">
+                    <output id="backLetterSpacingOut">1</output>
+                </label>
+
+                <label>
+                    Font weight
+                    <input id="backFontWeight" type="range" min="100" max="900" step="100" value="600">
+                    <output id="backFontWeightOut">600</output>
+                </label>
+
+                <label>
+                    Font style
+                    <select id="backFontStyle">
+                        <option value="normal">normal</option>
+                        <option value="italic">italic</option>
+                    </select>
+                </label>
+
+                <label>
+                    Text transform
+                    <select id="backTextTransform">
+                        <option value="none">none</option>
+                        <option value="uppercase">uppercase</option>
+                        <option value="lowercase">lowercase</option>
+                        <option value="capitalize">capitalize</option>
+                    </select>
+                </label>
+
+                <div class="margin-grid">
+                    <h3>Margins (texture px)</h3>
+
+                    <label>
+                        Top
+                        <input id="backMarginTop" type="range" min="0" max="180" step="1" value="12">
+                        <output id="backMarginTopOut">12</output>
+                    </label>
+
+                    <label>
+                        Right
+                        <input id="backMarginRight" type="range" min="0" max="500" step="1" value="120">
+                        <output id="backMarginRightOut">120</output>
+                    </label>
+
+                    <label>
+                        Bottom
+                        <input id="backMarginBottom" type="range" min="0" max="180" step="1" value="12">
+                        <output id="backMarginBottomOut">12</output>
+                    </label>
+
+                    <label>
+                        Left
+                        <input id="backMarginLeft" type="range" min="0" max="500" step="1" value="120">
+                        <output id="backMarginLeftOut">120</output>
+                    </label>
+                </div>
+            </section>
+        </aside>
+
+        <div id="app"></div>
+
+        <script type="module">
+            import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
+            import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/controls/OrbitControls.js";
+            import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/environments/RoomEnvironment.js";
+
+            const PLATE_CONFIG = {
+                width: 10,
+                height: 1,
+                depth: 0.26,
+                bendRadius: 34,
+                curveSegments: 120
+            };
+
+            const FONT_OPTIONS = [
+                "Orbitron",
+                "Cinzel",
+                "Rajdhani",
+                "Montserrat",
+                "Oswald",
+                "Playfair Display",
+                "Bebas Neue"
+            ];
+
+            const PARAM_DEFAULTS = {
+                front: {
+                    text: "ASTRIX",
+                    font: "Orbitron",
+                    fs: 124,
+                    ls: 2,
+                    fw: 700,
+                    fst: "normal",
+                    tt: "none",
+                    mt: 12,
+                    mr: 120,
+                    mb: 12,
+                    ml: 120
+                },
+                back: {
+                    text: "EST. 2026",
+                    font: "Cinzel",
+                    fs: 98,
+                    ls: 1,
+                    fw: 600,
+                    fst: "normal",
+                    tt: "none",
+                    mt: 12,
+                    mr: 120,
+                    mb: 12,
+                    ml: 120
+                }
+            };
+
+            const PARAM_LIMITS = {
+                fs: [32, 280],
+                ls: [-50, 300],
+                fw: [100, 900],
+                mt: [0, 180],
+                mr: [0, 500],
+                mb: [0, 180],
+                ml: [0, 500]
+            };
+
+            const PLATE_COLORS = {
+                plateColor: "#c6ccd1",
+                faceColor: "#e2e6e9",
+                frontColor: "#111111",
+                backColor: "#1a1a1a"
+            };
+
+            const app = document.getElementById("app");
+            const scene = new THREE.Scene();
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.setClearColor(0x000000, 1);
+            app.appendChild(renderer.domElement);
+
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            const envTexture = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+            scene.environment = envTexture;
+
+            const ui = {
+                front: {
+                    text: document.getElementById("frontText"),
+                    fontPreset: document.getElementById("frontFontPreset"),
+                    fontFamily: document.getElementById("frontFontFamily"),
+                    fontSize: document.getElementById("frontFontSize"),
+                    fontSizeOut: document.getElementById("frontFontSizeOut"),
+                    letterSpacing: document.getElementById("frontLetterSpacing"),
+                    letterSpacingOut: document.getElementById("frontLetterSpacingOut"),
+                    fontWeight: document.getElementById("frontFontWeight"),
+                    fontWeightOut: document.getElementById("frontFontWeightOut"),
+                    fontStyle: document.getElementById("frontFontStyle"),
+                    textTransform: document.getElementById("frontTextTransform"),
+                    marginTop: document.getElementById("frontMarginTop"),
+                    marginTopOut: document.getElementById("frontMarginTopOut"),
+                    marginRight: document.getElementById("frontMarginRight"),
+                    marginRightOut: document.getElementById("frontMarginRightOut"),
+                    marginBottom: document.getElementById("frontMarginBottom"),
+                    marginBottomOut: document.getElementById("frontMarginBottomOut"),
+                    marginLeft: document.getElementById("frontMarginLeft"),
+                    marginLeftOut: document.getElementById("frontMarginLeftOut")
+                },
+                back: {
+                    text: document.getElementById("backText"),
+                    fontPreset: document.getElementById("backFontPreset"),
+                    fontFamily: document.getElementById("backFontFamily"),
+                    fontSize: document.getElementById("backFontSize"),
+                    fontSizeOut: document.getElementById("backFontSizeOut"),
+                    letterSpacing: document.getElementById("backLetterSpacing"),
+                    letterSpacingOut: document.getElementById("backLetterSpacingOut"),
+                    fontWeight: document.getElementById("backFontWeight"),
+                    fontWeightOut: document.getElementById("backFontWeightOut"),
+                    fontStyle: document.getElementById("backFontStyle"),
+                    textTransform: document.getElementById("backTextTransform"),
+                    marginTop: document.getElementById("backMarginTop"),
+                    marginTopOut: document.getElementById("backMarginTopOut"),
+                    marginRight: document.getElementById("backMarginRight"),
+                    marginRightOut: document.getElementById("backMarginRightOut"),
+                    marginBottom: document.getElementById("backMarginBottom"),
+                    marginBottomOut: document.getElementById("backMarginBottomOut"),
+                    marginLeft: document.getElementById("backMarginLeft"),
+                    marginLeftOut: document.getElementById("backMarginLeftOut")
+                }
+            };
+
+            const state = readStateFromUrl();
+            hydrateUiFromState(state);
+            loadGoogleFont(state.front.font, "front");
+            loadGoogleFont(state.back.font, "back");
+
+            const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(0, 3.2, 23);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.enablePan = false;
+            controls.minDistance = 12;
+            controls.maxDistance = 40;
+            controls.target.set(0, 0, 0);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+            const hemi = new THREE.HemisphereLight(0xdde7ff, 0x1c1c1c, 0.55);
+            scene.add(hemi);
+
+            const key = new THREE.DirectionalLight(0xffffff, 1.0);
+            key.position.set(12, 7, 12);
+            scene.add(key);
+
+            const leftFill = new THREE.DirectionalLight(0xe9f1ff, 0.85);
+            leftFill.position.set(-14, 2, 8);
+            scene.add(leftFill);
+
+            const rightFill = new THREE.DirectionalLight(0xfff7eb, 0.85);
+            rightFill.position.set(14, 2, 8);
+            scene.add(rightFill);
+
+            const topFill = new THREE.DirectionalLight(0xffffff, 0.55);
+            topFill.position.set(0, 11, 2);
+            scene.add(topFill);
+
+            const rim = new THREE.DirectionalLight(0xffffff, 0.65);
+            rim.position.set(0, 5, -11);
+            scene.add(rim);
+
+            function clamp(value, min, max) {
+                return Math.min(max, Math.max(min, value));
+            }
+
+            function applyTextTransform(text, transform) {
+                if (transform === "uppercase") {
+                    return text.toUpperCase();
+                }
+
+                if (transform === "lowercase") {
+                    return text.toLowerCase();
+                }
+
+                if (transform === "capitalize") {
+                    return text.replace(/\b(\w)/g, (match) => match.toUpperCase());
+                }
+
+                return text;
+            }
+
+            function measureSpacedText(ctx, text, spacing) {
+                if (text.length === 0) {
+                    return 0;
+                }
+
+                let width = 0;
+                for (let i = 0; i < text.length; i += 1) {
+                    width += ctx.measureText(text[i]).width;
+                    if (i < text.length - 1) {
+                        width += spacing;
+                    }
+                }
+                return width;
+            }
+
+            function drawTextWithLetterSpacing(ctx, text, x, y, spacing) {
+                if (text.length === 0) {
+                    return;
+                }
+
+                let cursorX = x;
+                for (let i = 0; i < text.length; i += 1) {
+                    const glyph = text[i];
+                    ctx.fillText(glyph, cursorX, y);
+                    cursorX += ctx.measureText(glyph).width + spacing;
+                }
+            }
+
+            function createFaceTexture(side) {
+                const canvas = document.createElement("canvas");
+                canvas.width = 4096;
+                canvas.height = 512;
+                const ctx = canvas.getContext("2d");
+                const sideState = state[side];
+
+                const textColor = side === "front" ? PLATE_COLORS.frontColor : PLATE_COLORS.backColor;
+                const fontFamily = sideState.font;
+                const fontWeight = sideState.fw;
+                const fontStyle = sideState.fst;
+                const fontSize = sideState.fs;
+                const spacing = sideState.ls;
+
+                const marginTop = sideState.mt;
+                const marginRight = sideState.mr;
+                const marginBottom = sideState.mb;
+                const marginLeft = sideState.ml;
+
+                const usableWidth = Math.max(32, canvas.width - marginLeft - marginRight);
+                const usableHeight = Math.max(32, canvas.height - marginTop - marginBottom);
+                const regionCenterX = marginLeft + usableWidth / 2;
+                const regionCenterY = marginTop + usableHeight / 2;
+
+                const transformedText = applyTextTransform(sideState.text, sideState.tt);
+                const fontSpec = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = PLATE_COLORS.faceColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = textColor;
+                ctx.font = fontSpec;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+
+                const textWidth = measureSpacedText(ctx, transformedText, spacing);
+                const startX = regionCenterX - textWidth / 2;
+                drawTextWithLetterSpacing(ctx, transformedText, startX, regionCenterY, spacing);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                texture.needsUpdate = true;
+                return texture;
+            }
+
+            function bendBoxGeometry(geometry, radius) {
+                const position = geometry.attributes.position;
+                const vertex = new THREE.Vector3();
+
+                for (let i = 0; i < position.count; i += 1) {
+                    vertex.fromBufferAttribute(position, i);
+                    const angle = vertex.x / radius;
+                    const bentX = Math.sin(angle) * radius;
+                    const bentZ = Math.cos(angle) * radius - radius + vertex.z;
+
+                    position.setXYZ(i, bentX, vertex.y, bentZ);
+                }
+
+                position.needsUpdate = true;
+                geometry.computeVertexNormals();
+            }
+
+            function createPlateMaterials() {
+                const sideMaterial = new THREE.MeshPhysicalMaterial({
+                    color: new THREE.Color(PLATE_COLORS.plateColor),
+                    metalness: 0.86,
+                    roughness: 0.34,
+                    clearcoat: 0.42,
+                    clearcoatRoughness: 0.24,
+                    envMapIntensity: 1.35
+                });
+
+                const frontMaterial = sideMaterial.clone();
+                const backMaterial = sideMaterial.clone();
+
+                return [
+                    sideMaterial,
+                    sideMaterial,
+                    sideMaterial,
+                    sideMaterial,
+                    frontMaterial,
+                    backMaterial
+                ];
+            }
+
+            function buildPlate() {
+                const materials = createPlateMaterials();
+
+                const geometry = new THREE.BoxGeometry(
+                    PLATE_CONFIG.width,
+                    PLATE_CONFIG.height,
+                    PLATE_CONFIG.depth,
+                    PLATE_CONFIG.curveSegments,
+                    1,
+                    1
+                );
+                bendBoxGeometry(geometry, PLATE_CONFIG.bendRadius);
+
+                const plate = new THREE.Mesh(geometry, materials);
+                plate.castShadow = false;
+                plate.receiveShadow = false;
+                plate.rotation.x = -0.22;
+                plate.rotation.y = 0.35;
+                scene.add(plate);
+
+                return plate;
+            }
+
+            const plateMesh = buildPlate();
+
+            function replaceMaterialMap(material, texture) {
+                if (material.map) {
+                    material.map.dispose();
+                }
+                material.map = texture;
+                material.needsUpdate = true;
+            }
+
+            function updatePlateTextures() {
+                const frontTexture = createFaceTexture("front");
+                const backTexture = createFaceTexture("back");
+
+                const frontMaterial = plateMesh.material[4];
+                const backMaterial = plateMesh.material[5];
+
+                replaceMaterialMap(frontMaterial, frontTexture);
+                replaceMaterialMap(backMaterial, backTexture);
+            }
+
+            function updateUrlFromState() {
+                const params = new URLSearchParams();
+                ["front", "back"].forEach((side) => {
+                    const prefix = side === "front" ? "f" : "b";
+                    const sideState = state[side];
+                    params.set(`${prefix}_text`, sideState.text);
+                    params.set(`${prefix}_font`, sideState.font);
+                    params.set(`${prefix}_fs`, String(sideState.fs));
+                    params.set(`${prefix}_ls`, String(sideState.ls));
+                    params.set(`${prefix}_fw`, String(sideState.fw));
+                    params.set(`${prefix}_fst`, sideState.fst);
+                    params.set(`${prefix}_tt`, sideState.tt);
+                    params.set(`${prefix}_mt`, String(sideState.mt));
+                    params.set(`${prefix}_mr`, String(sideState.mr));
+                    params.set(`${prefix}_mb`, String(sideState.mb));
+                    params.set(`${prefix}_ml`, String(sideState.ml));
+                });
+
+                const next = `${window.location.pathname}?${params.toString()}`;
+                window.history.replaceState({}, "", next);
+            }
+
+            function toNumber(raw, fallback, min, max) {
+                const n = parseFloat(raw);
+                if (!Number.isFinite(n)) {
+                    return fallback;
+                }
+                return clamp(n, min, max);
+            }
+
+            function sanitizeFontFamily(fontValue) {
+                const clean = String(fontValue || "").replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+                return clean || PARAM_DEFAULTS.front.font;
+            }
+
+            function readSideFromUrl(search, side) {
+                const prefix = side === "front" ? "f" : "b";
+                const defaults = PARAM_DEFAULTS[side];
+                const legacyText = side === "front" ? search.get("front") : search.get("back");
+                const legacyFont = search.get("font");
+                const legacyFs = search.get("fs");
+                const legacyLs = search.get("ls");
+                const legacyFw = search.get("fw");
+                const legacyFst = search.get("fst");
+                const legacyTt = search.get("tt");
+                const legacyMt = search.get("mt");
+                const legacyMr = search.get("mr");
+                const legacyMb = search.get("mb");
+                const legacyMl = search.get("ml");
+
+                const ttValue = search.get(`${prefix}_tt`) || legacyTt;
+                return {
+                    text: (search.get(`${prefix}_text`) || legacyText || defaults.text).slice(0, 40),
+                    font: sanitizeFontFamily(search.get(`${prefix}_font`) || legacyFont || defaults.font),
+                    fs: toNumber(search.get(`${prefix}_fs`) || legacyFs, defaults.fs, PARAM_LIMITS.fs[0], PARAM_LIMITS.fs[1]),
+                    ls: toNumber(search.get(`${prefix}_ls`) || legacyLs, defaults.ls, PARAM_LIMITS.ls[0], PARAM_LIMITS.ls[1]),
+                    fw: toNumber(search.get(`${prefix}_fw`) || legacyFw, defaults.fw, PARAM_LIMITS.fw[0], PARAM_LIMITS.fw[1]),
+                    fst: (search.get(`${prefix}_fst`) || legacyFst) === "italic" ? "italic" : "normal",
+                    tt: ["none", "uppercase", "lowercase", "capitalize"].includes(ttValue) ? ttValue : "none",
+                    mt: toNumber(search.get(`${prefix}_mt`) || legacyMt, defaults.mt, PARAM_LIMITS.mt[0], PARAM_LIMITS.mt[1]),
+                    mr: toNumber(search.get(`${prefix}_mr`) || legacyMr, defaults.mr, PARAM_LIMITS.mr[0], PARAM_LIMITS.mr[1]),
+                    mb: toNumber(search.get(`${prefix}_mb`) || legacyMb, defaults.mb, PARAM_LIMITS.mb[0], PARAM_LIMITS.mb[1]),
+                    ml: toNumber(search.get(`${prefix}_ml`) || legacyMl, defaults.ml, PARAM_LIMITS.ml[0], PARAM_LIMITS.ml[1])
+                };
+            }
+
+            function readStateFromUrl() {
+                const search = new URLSearchParams(window.location.search);
+                return {
+                    front: readSideFromUrl(search, "front"),
+                    back: readSideFromUrl(search, "back")
+                };
+            }
+
+            function hydrateUiFromState(values) {
+                ["front", "back"].forEach((side) => {
+                    const sideUi = ui[side];
+                    const sideState = values[side];
+                    sideUi.text.value = sideState.text;
+                    sideUi.fontPreset.value = FONT_OPTIONS.includes(sideState.font) ? sideState.font : "";
+                    sideUi.fontFamily.value = sideState.font;
+
+                    sideUi.fontSize.value = String(sideState.fs);
+                    sideUi.fontSizeOut.value = String(sideState.fs);
+
+                    sideUi.letterSpacing.value = String(sideState.ls);
+                    sideUi.letterSpacingOut.value = String(sideState.ls);
+
+                    sideUi.fontWeight.value = String(sideState.fw);
+                    sideUi.fontWeightOut.value = String(sideState.fw);
+
+                    sideUi.fontStyle.value = sideState.fst;
+                    sideUi.textTransform.value = sideState.tt;
+
+                    sideUi.marginTop.value = String(sideState.mt);
+                    sideUi.marginTopOut.value = String(sideState.mt);
+                    sideUi.marginRight.value = String(sideState.mr);
+                    sideUi.marginRightOut.value = String(sideState.mr);
+                    sideUi.marginBottom.value = String(sideState.mb);
+                    sideUi.marginBottomOut.value = String(sideState.mb);
+                    sideUi.marginLeft.value = String(sideState.ml);
+                    sideUi.marginLeftOut.value = String(sideState.ml);
+                });
+            }
+
+            function loadGoogleFont(fontFamily, side) {
+                const fontId = `dynamic-google-font-${side}`;
+                const encoded = fontFamily.trim().replace(/\s+/g, "+");
+                const href = `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap`;
+                let fontLink = document.getElementById(fontId);
+
+                if (!fontLink) {
+                    fontLink = document.createElement("link");
+                    fontLink.id = fontId;
+                    fontLink.rel = "stylesheet";
+                    document.head.appendChild(fontLink);
+                }
+
+                if (fontLink.getAttribute("href") !== href) {
+                    fontLink.setAttribute("href", href);
+                }
+            }
+
+            function readStateFromUi() {
+                ["front", "back"].forEach((side) => {
+                    const sideUi = ui[side];
+                    const defaults = PARAM_DEFAULTS[side];
+                    const sideState = state[side];
+
+                    sideState.text = sideUi.text.value.slice(0, 40);
+                    sideState.font = sanitizeFontFamily(sideUi.fontFamily.value || sideUi.fontPreset.value);
+                    sideState.fs = toNumber(sideUi.fontSize.value, defaults.fs, PARAM_LIMITS.fs[0], PARAM_LIMITS.fs[1]);
+                    sideState.ls = toNumber(sideUi.letterSpacing.value, defaults.ls, PARAM_LIMITS.ls[0], PARAM_LIMITS.ls[1]);
+                    sideState.fw = toNumber(sideUi.fontWeight.value, defaults.fw, PARAM_LIMITS.fw[0], PARAM_LIMITS.fw[1]);
+                    sideState.fst = sideUi.fontStyle.value === "italic" ? "italic" : "normal";
+                    sideState.tt = ["none", "uppercase", "lowercase", "capitalize"].includes(sideUi.textTransform.value)
+                        ? sideUi.textTransform.value
+                        : "none";
+                    sideState.mt = toNumber(sideUi.marginTop.value, defaults.mt, PARAM_LIMITS.mt[0], PARAM_LIMITS.mt[1]);
+                    sideState.mr = toNumber(sideUi.marginRight.value, defaults.mr, PARAM_LIMITS.mr[0], PARAM_LIMITS.mr[1]);
+                    sideState.mb = toNumber(sideUi.marginBottom.value, defaults.mb, PARAM_LIMITS.mb[0], PARAM_LIMITS.mb[1]);
+                    sideState.ml = toNumber(sideUi.marginLeft.value, defaults.ml, PARAM_LIMITS.ml[0], PARAM_LIMITS.ml[1]);
+                });
+            }
+
+            function syncOutputLabels() {
+                ["front", "back"].forEach((side) => {
+                    const sideUi = ui[side];
+                    const sideState = state[side];
+                    sideUi.fontSizeOut.value = String(sideState.fs);
+                    sideUi.letterSpacingOut.value = String(sideState.ls);
+                    sideUi.fontWeightOut.value = String(sideState.fw);
+                    sideUi.marginTopOut.value = String(sideState.mt);
+                    sideUi.marginRightOut.value = String(sideState.mr);
+                    sideUi.marginBottomOut.value = String(sideState.mb);
+                    sideUi.marginLeftOut.value = String(sideState.ml);
+                });
+            }
+
+            function applyAllParams() {
+                readStateFromUi();
+                loadGoogleFont(state.front.font, "front");
+                loadGoogleFont(state.back.font, "back");
+                syncOutputLabels();
+                updatePlateTextures();
+                updateUrlFromState();
+            }
+
+            function bindUiEvents() {
+                ["front", "back"].forEach((side) => {
+                    const sideUi = ui[side];
+                    const controls = [
+                        sideUi.text,
+                        sideUi.fontPreset,
+                        sideUi.fontFamily,
+                        sideUi.fontSize,
+                        sideUi.letterSpacing,
+                        sideUi.fontWeight,
+                        sideUi.fontStyle,
+                        sideUi.textTransform,
+                        sideUi.marginTop,
+                        sideUi.marginRight,
+                        sideUi.marginBottom,
+                        sideUi.marginLeft
+                    ];
+
+                    controls.forEach((el) => {
+                        const eventName = el.tagName === "INPUT" && el.type === "range" ? "input" : "change";
+                        el.addEventListener(eventName, () => {
+                            if (el === sideUi.fontPreset) {
+                                if (sideUi.fontPreset.value) {
+                                    sideUi.fontFamily.value = sideUi.fontPreset.value;
+                                }
+                            }
+
+                            if (el === sideUi.fontFamily) {
+                                sideUi.fontPreset.value = FONT_OPTIONS.includes(sideUi.fontFamily.value)
+                                    ? sideUi.fontFamily.value
+                                    : "";
+                            }
+
+                            applyAllParams();
+                        });
+
+                        if (el.tagName === "INPUT" && el.type === "text") {
+                            el.addEventListener("input", () => {
+                                if (el === sideUi.fontFamily) {
+                                    sideUi.fontPreset.value = FONT_OPTIONS.includes(sideUi.fontFamily.value)
+                                        ? sideUi.fontFamily.value
+                                        : "";
+                                }
+                                applyAllParams();
+                            });
+                        }
+                    });
+                });
+            }
+
+            bindUiEvents();
+            updatePlateTextures();
+            updateUrlFromState();
+
+            function onResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            window.addEventListener("resize", onResize);
+
+            function animate() {
+                controls.update();
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        </script>
+    </body>
+</html>
