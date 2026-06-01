@@ -1,11 +1,16 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/environments/RoomEnvironment.js";
+import { GLTFExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/GLTFExporter.js";
+import { OBJExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/OBJExporter.js";
+import { STLExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/STLExporter.js";
 
 const DEFAULT_BEND_ANGLE = Number(((10 / 34) * (180 / Math.PI)).toFixed(2));
 const FONT_OPTIONS = ["Orbitron", "Cinzel", "Rajdhani", "Montserrat", "Oswald", "Playfair Display", "Bebas Neue"];
 const MATERIAL_PRESETS = { silver: "#c6ccd1", gold: "#cda349" };
 const CORNER_MODES = ["none", "all", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
+const BG_SOLID = { black: "#000000", midnight: "#04080f", charcoal: "#1a1a1a", navy: "#050f1a", "warm-dark": "#100a03", "studio-gray": "#252525" };
+const BG_PRESETS = ["black", "midnight", "charcoal", "navy", "warm-dark", "studio-gray", "gradient-dark", "gradient-warm", "gradient-cool", "marble", "grid", "custom"];
 
 const PARAM_DEFAULTS = {
     plate: {
@@ -20,12 +25,15 @@ const PARAM_DEFAULTS = {
         cornerMode: "none"
     },
     front: { text: "FRONT TEXT", font: "Orbitron", fs: 124, ls: 2, fw: 700, fst: "normal", tt: "none", mt: 12, mr: 120, mb: 12, ml: 120 },
-    back: { text: "BACK TEXT", font: "Cinzel", fs: 98, ls: 1, fw: 600, fst: "normal", tt: "none", mt: 12, mr: 120, mb: 12, ml: 120 }
+    back: { text: "BACK TEXT", font: "Cinzel", fs: 98, ls: 1, fw: 600, fst: "normal", tt: "none", mt: 12, mr: 120, mb: 12, ml: 120 },
+    bg: { preset: "black", color: "#000000" },
+    band: { visible: false, type: "band", color: "#222222", thickness: 0.22, length: 1.5, metalness: 0 }
 };
 
 const LIMITS = {
     fs: [32, 280], ls: [-50, 300], fw: [100, 900], mt: [0, 180], mr: [0, 500], mb: [0, 180], ml: [0, 500],
-    shininess: [0, 100], width: [4, 20], height: [0.4, 4], depth: [0.08, 1.2], bendAngle: [0, 120], cornerRadius: [0, 2]
+    shininess: [0, 100], width: [4, 20], height: [0.4, 4], depth: [0.08, 1.2], bendAngle: [0, 120], cornerRadius: [0, 2],
+    bandThickness: [0.05, 0.8], bandLength: [1.1, 2.5], bandMetalness: [0, 1]
 };
 
 const app = document.getElementById("app");
@@ -36,7 +44,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setClearColor(0x000000, 1);
 app.appendChild(renderer.domElement);
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -92,6 +99,19 @@ const ui = {
         marginRight: document.getElementById("backMarginRight"), marginRightOut: document.getElementById("backMarginRightOut"),
         marginBottom: document.getElementById("backMarginBottom"), marginBottomOut: document.getElementById("backMarginBottomOut"),
         marginLeft: document.getElementById("backMarginLeft"), marginLeftOut: document.getElementById("backMarginLeftOut")
+    },
+    bg: {
+        preset: document.getElementById("bgPreset"),
+        color: document.getElementById("bgColor"),
+        colorLabel: document.getElementById("bgCustomColorLabel")
+    },
+    band: {
+        visible: document.getElementById("bandVisible"),
+        type: document.getElementById("bandType"),
+        color: document.getElementById("bandColor"),
+        thickness: document.getElementById("bandThickness"), thicknessOut: document.getElementById("bandThicknessOut"),
+        length: document.getElementById("bandLength"), lengthOut: document.getElementById("bandLengthOut"),
+        metalness: document.getElementById("bandMetalness"), metalnessOut: document.getElementById("bandMetalnessOut")
     }
 };
 
@@ -100,8 +120,11 @@ hydrateUiFromState();
 loadGoogleFont(state.front.font, "front");
 loadGoogleFont(state.back.font, "back");
 
+let bandGroup = null;
 let plateMesh = buildPlate();
 updatePlateTextures();
+rebuildBand();
+applyBackground();
 updateUrlFromState();
 
 function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
@@ -411,9 +434,28 @@ function readPlate(search) {
     return plate;
 }
 
+function readBg(search) {
+    const d = PARAM_DEFAULTS.bg;
+    const preset = BG_PRESETS.includes(search.get("bg_p")) ? search.get("bg_p") : d.preset;
+    return { preset, color: sanitizeHex(search.get("bg_c"), d.color) };
+}
+
+function readBand(search) {
+    const d = PARAM_DEFAULTS.band;
+    const type = ["band", "chain"].includes(search.get("bd_t")) ? search.get("bd_t") : d.type;
+    return {
+        visible: search.get("bd_v") === "1",
+        type,
+        color: sanitizeHex(search.get("bd_c"), d.color),
+        thickness: toNumber(search.get("bd_th"), d.thickness, LIMITS.bandThickness[0], LIMITS.bandThickness[1]),
+        length: toNumber(search.get("bd_ln"), d.length, LIMITS.bandLength[0], LIMITS.bandLength[1]),
+        metalness: toNumber(search.get("bd_m"), d.metalness, LIMITS.bandMetalness[0], LIMITS.bandMetalness[1])
+    };
+}
+
 function readStateFromUrl() {
     const search = new URLSearchParams(window.location.search);
-    return { plate: readPlate(search), front: readSide(search, "front"), back: readSide(search, "back") };
+    return { plate: readPlate(search), front: readSide(search, "front"), back: readSide(search, "back"), bg: readBg(search), band: readBand(search) };
 }
 
 function hydrateUiFromState() {
@@ -447,6 +489,17 @@ function hydrateUiFromState() {
 
     syncCornerRadiusRange();
     syncOutputLabels();
+
+    ui.bg.preset.value = state.bg.preset;
+    ui.bg.color.value = state.bg.color;
+    ui.bg.colorLabel.style.display = state.bg.preset === "custom" ? "" : "none";
+
+    ui.band.visible.checked = state.band.visible;
+    ui.band.type.value = state.band.type;
+    ui.band.color.value = state.band.color;
+    ui.band.thickness.value = String(state.band.thickness);
+    ui.band.length.value = String(state.band.length);
+    ui.band.metalness.value = String(state.band.metalness);
 }
 
 function readStateFromUi() {
@@ -462,6 +515,16 @@ function readStateFromUi() {
     p.cornerMode = CORNER_MODES.includes(ui.plate.cornerMode.value) ? ui.plate.cornerMode.value : "none";
     normalizePlatePreset();
     syncCornerRadiusRange();
+
+    state.bg.preset = BG_PRESETS.includes(ui.bg.preset.value) ? ui.bg.preset.value : "black";
+    state.bg.color = sanitizeHex(ui.bg.color.value, PARAM_DEFAULTS.bg.color);
+
+    state.band.visible = ui.band.visible.checked;
+    state.band.type = ["band", "chain"].includes(ui.band.type.value) ? ui.band.type.value : "band";
+    state.band.color = sanitizeHex(ui.band.color.value, PARAM_DEFAULTS.band.color);
+    state.band.thickness = toNumber(ui.band.thickness.value, PARAM_DEFAULTS.band.thickness, LIMITS.bandThickness[0], LIMITS.bandThickness[1]);
+    state.band.length = toNumber(ui.band.length.value, PARAM_DEFAULTS.band.length, LIMITS.bandLength[0], LIMITS.bandLength[1]);
+    state.band.metalness = toNumber(ui.band.metalness.value, PARAM_DEFAULTS.band.metalness, LIMITS.bandMetalness[0], LIMITS.bandMetalness[1]);
 
     ["front", "back"].forEach((side) => {
         const s = state[side];
@@ -502,6 +565,11 @@ function syncOutputLabels() {
         u.marginBottomOut.value = format(s.mb, 0);
         u.marginLeftOut.value = format(s.ml, 0);
     });
+
+    ui.band.thicknessOut.value = format(state.band.thickness, 2);
+    ui.band.lengthOut.value = format(state.band.length, 2);
+    ui.band.metalnessOut.value = format(state.band.metalness, 2);
+    ui.bg.colorLabel.style.display = state.bg.preset === "custom" ? "" : "none";
 }
 
 function updateUrlFromState() {
@@ -516,6 +584,15 @@ function updateUrlFromState() {
     params.set("p_ba", String(p.bendAngle));
     params.set("p_cr", String(p.cornerRadius));
     params.set("p_cm", p.cornerMode);
+
+    params.set("bg_p", state.bg.preset);
+    params.set("bg_c", state.bg.color);
+    params.set("bd_v", state.band.visible ? "1" : "0");
+    params.set("bd_t", state.band.type);
+    params.set("bd_c", state.band.color);
+    params.set("bd_th", String(state.band.thickness));
+    params.set("bd_ln", String(state.band.length));
+    params.set("bd_m", String(state.band.metalness));
 
     ["front", "back"].forEach((side) => {
         const prefix = side === "front" ? "f" : "b";
@@ -543,7 +620,262 @@ function applyAllParams() {
     syncOutputLabels();
     rebuildPlate();
     updatePlateTextures();
+    rebuildBand();
+    applyBackground();
     updateUrlFromState();
+}
+
+// ======== BACKGROUND ========
+function makeBgCanvas(type) {
+    const W = 512, H = 512;
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    if (type === "gradient-dark") {
+        const g = ctx.createRadialGradient(W * 0.35, H * 0.25, 0, W * 0.5, H * 0.5, W * 0.85);
+        g.addColorStop(0, "#1c1c1c"); g.addColorStop(1, "#050505");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else if (type === "gradient-warm") {
+        const g = ctx.createRadialGradient(W * 0.4, H * 0.3, 0, W * 0.5, H * 0.5, W * 0.85);
+        g.addColorStop(0, "#201408"); g.addColorStop(1, "#060301");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else if (type === "gradient-cool") {
+        const g = ctx.createRadialGradient(W * 0.4, H * 0.3, 0, W * 0.5, H * 0.5, W * 0.85);
+        g.addColorStop(0, "#0b1325"); g.addColorStop(1, "#020408");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else if (type === "marble") {
+        ctx.fillStyle = "#ddd6cc"; ctx.fillRect(0, 0, W, H);
+        for (let i = 0; i < 14; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(${160 + Math.random() * 40 | 0},${150 + Math.random() * 40 | 0},${140 + Math.random() * 30 | 0},0.45)`;
+            ctx.lineWidth = 1 + Math.random() * 2.5;
+            let x = Math.random() * W, y = 0;
+            ctx.moveTo(x, y);
+            for (let j = 0; j < 10; j++) {
+                x += (Math.random() - 0.5) * 90; y += H / 10;
+                ctx.lineTo(Math.max(0, Math.min(W, x)), y);
+            }
+            ctx.stroke();
+        }
+    } else if (type === "grid") {
+        ctx.fillStyle = "#0d0d0d"; ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = "rgba(55,55,55,0.7)"; ctx.lineWidth = 1;
+        for (let x = 0; x <= W; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+        for (let y = 0; y <= H; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    }
+    return c;
+}
+
+function applyBackground() {
+    const preset = state.bg.preset;
+    if (BG_SOLID[preset]) {
+        if (scene.background && scene.background.isTexture) { scene.background.dispose(); }
+        scene.background = new THREE.Color(BG_SOLID[preset]);
+    } else if (preset === "custom") {
+        if (scene.background && scene.background.isTexture) { scene.background.dispose(); }
+        scene.background = new THREE.Color(state.bg.color);
+    } else {
+        const tex = new THREE.CanvasTexture(makeBgCanvas(preset));
+        if (scene.background && scene.background.isTexture) { scene.background.dispose(); }
+        scene.background = tex;
+    }
+}
+
+// ======== BAND / CHAIN ========
+
+function disposeBand() {
+    if (!bandGroup) { return; }
+    scene.remove(bandGroup);
+    bandGroup.traverse((obj) => {
+        if (obj.isMesh) {
+            if (obj.geometry) { obj.geometry.dispose(); }
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach((m) => m.dispose());
+        }
+    });
+    bandGroup = null;
+}
+
+function getPlateArcEndpoints(width, angleRad) {
+    const R = width / Math.max(0.0001, angleRad);
+    const half = angleRad * 0.5;
+    return {
+        left: new THREE.Vector3(Math.sin(-half) * R, 0, Math.cos(-half) * R - R),
+        right: new THREE.Vector3(Math.sin(half) * R, 0, Math.cos(half) * R - R)
+    };
+}
+
+function createBandPath(width, angleRad, lengthFactor) {
+    const { left, right } = getPlateArcEndpoints(width, angleRad);
+    const spanX = Math.abs(right.x - left.x);
+    const extra = Math.max(0, lengthFactor - 1);
+    const backDepth = width * (0.24 + extra * 0.9);
+    const sidePull = spanX * (0.22 + extra * 0.14);
+
+    const p1 = left.clone();
+    const p2 = new THREE.Vector3(left.x - sidePull, 0, left.z - backDepth * 0.42);
+    const p3 = new THREE.Vector3(0, 0, left.z - backDepth);
+    const p4 = new THREE.Vector3(right.x + sidePull, 0, right.z - backDepth * 0.42);
+    const p5 = right.clone();
+    return new THREE.CatmullRomCurve3([p1, p2, p3, p4, p5], false, "centripetal", 0.5);
+}
+
+function buildBandGeometry(path, s) {
+    const geo = new THREE.TubeGeometry(path, 120, s.thickness, 18, false);
+    const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(s.color),
+        roughness: Math.max(0.25, 0.7 - s.metalness * 0.45),
+        metalness: s.metalness,
+        clearcoat: s.metalness * 0.6,
+        clearcoatRoughness: 0.3
+    });
+    return new THREE.Mesh(geo, mat);
+}
+
+function buildChainGeometry(path, s) {
+    const pathLen = Math.max(0.1, path.getLength());
+    const linkPitch = Math.max(0.08, s.thickness * 2.05);
+    const numLinks = Math.max(18, Math.floor(pathLen / linkPitch));
+    const group = new THREE.Group();
+    const linkGeo = new THREE.TorusGeometry(s.thickness * 1.55, s.thickness * 0.42, 8, 14);
+    const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(s.color),
+        metalness: Math.max(0.55, s.metalness),
+        roughness: 0.3
+    });
+    for (let i = 0; i <= numLinks; i++) {
+        const t = i / numLinks;
+        const pos = path.getPoint(t);
+        const tang = path.getTangent(t).normalize();
+        const mesh = new THREE.Mesh(linkGeo, mat);
+        mesh.position.copy(pos);
+        const defAxis = new THREE.Vector3(0, 0, 1);
+        mesh.quaternion.setFromUnitVectors(defAxis, tang);
+        if (i % 2 === 0) {
+            mesh.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(tang, Math.PI / 2));
+        }
+        group.add(mesh);
+    }
+    return group;
+}
+
+function buildBand() {
+    const p = state.plate;
+    const s = state.band;
+    const angleRad = Math.max(0.05, THREE.MathUtils.degToRad(p.bendAngle));
+    const path = createBandPath(p.width, angleRad, s.length);
+
+    bandGroup = new THREE.Group();
+    const content = s.type === "chain" ? buildChainGeometry(path, s) : buildBandGeometry(path, s);
+    bandGroup.add(content);
+    bandGroup.rotation.copy(plateMesh.rotation);
+    bandGroup.visible = s.visible;
+    scene.add(bandGroup);
+}
+
+function rebuildBand() {
+    disposeBand();
+    buildBand();
+}
+
+// ======== EXPORT ========
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 6000);
+}
+
+function downloadString(str, filename, mime) {
+    downloadBlob(new Blob([str], { type: mime }), filename);
+}
+
+function exportPNG() {
+    renderer.render(scene, camera);
+    renderer.domElement.toBlob((blob) => { if (blob) { downloadBlob(blob, "wristband.png"); } }, "image/png");
+}
+
+function createDepthMapCanvas(side) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 4096; canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    const s = state[side];
+    const usableW = Math.max(32, canvas.width - s.ml - s.mr);
+    const usableH = Math.max(32, canvas.height - s.mt - s.mb);
+    const cx = s.ml + usableW / 2;
+    const cy = s.mt + usableH / 2;
+    const text = applyTextTransform(s.text, s.tt);
+    ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${s.fst} ${s.fw} ${s.fs}px "${s.font}"`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    drawTextWithLetterSpacing(ctx, text, cx - measureSpacedText(ctx, text, s.ls) / 2, cy, s.ls);
+    return canvas;
+}
+
+function exportDepthMap(side) {
+    createDepthMapCanvas(side).toBlob((blob) => { if (blob) { downloadBlob(blob, `depth-map-${side}.png`); } }, "image/png");
+}
+
+function escapeXml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function getGoogleFontImport(fontFamily) {
+    const clean = sanitizeFontFamily(fontFamily);
+    const encoded = clean.trim().replace(/\s+/g, "+");
+    return `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap`;
+}
+
+function exportSVG(side) {
+    const s = state[side];
+    const W = 4096, H = 512;
+    const uw = Math.max(32, W - s.ml - s.mr);
+    const uh = Math.max(32, H - s.mt - s.mb);
+    const cx = s.ml + uw / 2;
+    const cy = s.mt + uh / 2;
+    const text = applyTextTransform(s.text, s.tt);
+    const fontImport = getGoogleFontImport(s.font);
+    const svg = [
+        `<?xml version="1.0" encoding="UTF-8"?>`,
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
+        `  <defs>`,
+        `    <style><![CDATA[`,
+        `      @import url('${fontImport}');`,
+        `      .cut-text { font-family: '${escapeXml(s.font)}', sans-serif; font-style: ${s.fst}; font-weight: ${s.fw}; }`,
+        `    ]]></style>`,
+        `  </defs>`,
+        `  <rect width="${W}" height="${H}" fill="black"/>`,
+        `  <text class="cut-text" x="${cx}" y="${cy}" font-size="${s.fs}"`,
+        `    letter-spacing="${s.ls}" text-anchor="middle" dominant-baseline="middle"`,
+        `    fill="white">${escapeXml(text)}</text>`,
+        `</svg>`
+    ].join("\n");
+    downloadString(svg, `cuts-${side}.svg`, "image/svg+xml");
+}
+
+function exportGLB() {
+    const exporter = new GLTFExporter();
+    const grp = new THREE.Group();
+    grp.add(plateMesh.clone());
+    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
+    exporter.parse(grp, (result) => {
+        downloadBlob(new Blob([result], { type: "application/octet-stream" }), "wristband.glb");
+    }, (err) => { console.error("GLB export:", err); }, { binary: true });
+}
+
+function exportOBJ() {
+    const grp = new THREE.Group();
+    grp.add(plateMesh.clone());
+    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
+    downloadString(new OBJExporter().parse(grp), "wristband.obj", "text/plain");
+}
+
+function exportSTL() {
+    const grp = new THREE.Group();
+    grp.add(plateMesh.clone());
+    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
+    downloadString(new STLExporter().parse(grp, { binary: false }), "wristband.stl", "text/plain");
 }
 
 function bindSideEvents(side) {
@@ -581,6 +913,27 @@ function bindEvents() {
     });
     bindSideEvents("front");
     bindSideEvents("back");
+
+    // Background
+    [ui.bg.preset, ui.bg.color].forEach((el) => {
+        const ev = el.tagName === "INPUT" ? "input" : "change";
+        el.addEventListener(ev, applyAllParams);
+    });
+
+    // Band
+    ui.band.visible.addEventListener("change", applyAllParams);
+    [ui.band.type, ui.band.color].forEach((el) => el.addEventListener("change", applyAllParams));
+    [ui.band.thickness, ui.band.length, ui.band.metalness].forEach((el) => el.addEventListener("input", applyAllParams));
+
+    // Export buttons
+    document.getElementById("exportPNG").addEventListener("click", exportPNG);
+    document.getElementById("exportDepthFront").addEventListener("click", () => exportDepthMap("front"));
+    document.getElementById("exportDepthBack").addEventListener("click", () => exportDepthMap("back"));
+    document.getElementById("exportSVGFront").addEventListener("click", () => exportSVG("front"));
+    document.getElementById("exportSVGBack").addEventListener("click", () => exportSVG("back"));
+    document.getElementById("exportGLB").addEventListener("click", exportGLB);
+    document.getElementById("exportOBJ").addEventListener("click", exportOBJ);
+    document.getElementById("exportSTL").addEventListener("click", exportSTL);
 }
 
 bindEvents();

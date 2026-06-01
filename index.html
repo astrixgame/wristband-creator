@@ -47,6 +47,33 @@
             <h1>Plate Params</h1>
 
             <section class="side-section">
+                <h2>Scene Background</h2>
+
+                <label>
+                    Preset
+                    <select id="bgPreset">
+                        <option value="black">Black</option>
+                        <option value="midnight">Midnight Blue</option>
+                        <option value="charcoal">Charcoal</option>
+                        <option value="navy">Deep Navy</option>
+                        <option value="warm-dark">Warm Dark</option>
+                        <option value="studio-gray">Studio Gray</option>
+                        <option value="gradient-dark">Gradient Dark</option>
+                        <option value="gradient-warm">Gradient Warm</option>
+                        <option value="gradient-cool">Gradient Cool</option>
+                        <option value="marble">Marble</option>
+                        <option value="grid">Grid</option>
+                        <option value="custom">Custom Color</option>
+                    </select>
+                </label>
+
+                <label id="bgCustomColorLabel" style="display:none">
+                    Color
+                    <input id="bgColor" type="color" value="#000000">
+                </label>
+            </section>
+
+            <section class="side-section">
                 <h2>Plate</h2>
 
                 <label>
@@ -113,6 +140,49 @@
                         <option value="bottom-left">Bottom Left</option>
                         <option value="bottom-right">Bottom Right</option>
                     </select>
+                </label>
+            </section>
+
+            <section class="side-section">
+                <h2>Band / Chain</h2>
+
+                <div class="toggle-label">
+                    Show band
+                    <label class="toggle">
+                        <input id="bandVisible" type="checkbox">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <label>
+                    Type
+                    <select id="bandType">
+                        <option value="band">Rubber Band</option>
+                        <option value="chain">Chain Links</option>
+                    </select>
+                </label>
+
+                <label>
+                    Color
+                    <input id="bandColor" type="color" value="#222222">
+                </label>
+
+                <label>
+                    Thickness
+                    <input id="bandThickness" type="range" min="0.05" max="0.8" step="0.01" value="0.22">
+                    <output id="bandThicknessOut">0.22</output>
+                </label>
+
+                <label>
+                    Length (x plate width)
+                    <input id="bandLength" type="range" min="1.1" max="2.5" step="0.01" value="1.5">
+                    <output id="bandLengthOut">1.5</output>
+                </label>
+
+                <label>
+                    Metalness
+                    <input id="bandMetalness" type="range" min="0" max="1" step="0.01" value="0">
+                    <output id="bandMetalnessOut">0</output>
                 </label>
             </section>
 
@@ -299,9 +369,21 @@
                     </label>
                 </div>
             </section>
+
         </aside>
 
         <div id="app"></div>
+
+        <div id="exportBar" aria-label="Export controls">
+            <button id="exportPNG" class="export-btn">PNG Screenshot</button>
+            <button id="exportDepthFront" class="export-btn">Depth Map Front</button>
+            <button id="exportDepthBack" class="export-btn">Depth Map Back</button>
+            <button id="exportSVGFront" class="export-btn">SVG Cuts Front</button>
+            <button id="exportSVGBack" class="export-btn">SVG Cuts Back</button>
+            <button id="exportGLB" class="export-btn">3D Model GLB</button>
+            <button id="exportOBJ" class="export-btn">3D Model OBJ</button>
+            <button id="exportSTL" class="export-btn">3D Model STL</button>
+        </div>
 
         <script type="module" src="script.js"></script>
     </body>

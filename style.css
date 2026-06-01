@@ -46,8 +46,9 @@ body {
 	position: fixed;
 	top: 16px;
 	right: 16px;
+	bottom: 96px;
 	width: 320px;
-	max-height: calc(100vh - 32px);
+	max-height: none;
 	overflow: auto;
 	padding: 14px;
 	border: 1px solid #3c3c3c;
@@ -143,13 +144,123 @@ canvas {
 	touch-action: none;
 }
 
+/* Toggle switch */
+.toggle-label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 0.92rem;
+	margin-bottom: 8px;
+	cursor: default;
+}
+
+.toggle {
+	position: relative;
+	display: inline-block;
+	width: 46px;
+	height: 26px;
+	flex-shrink: 0;
+}
+
+.toggle input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.toggle-slider {
+	position: absolute;
+	inset: 0;
+	background: #333;
+	border-radius: 26px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.toggle-slider::before {
+	content: "";
+	position: absolute;
+	height: 20px;
+	width: 20px;
+	left: 3px;
+	bottom: 3px;
+	background: #ccc;
+	border-radius: 50%;
+	transition: transform 0.2s, background 0.2s;
+}
+
+.toggle input:checked + .toggle-slider {
+	background: #4a9eff;
+}
+
+.toggle input:checked + .toggle-slider::before {
+	transform: translateX(20px);
+	background: #fff;
+}
+
+/* Bottom export bar */
+#exportBar {
+	position: fixed;
+	left: 16px;
+	right: 16px;
+	bottom: 16px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	padding: 8px;
+	border: 1px solid #3c3c3c;
+	border-radius: 12px;
+	background: rgba(8, 8, 8, 0.82);
+	backdrop-filter: blur(8px);
+	z-index: 6;
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.export-btn {
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 1px solid #444;
+	background: #181818;
+	color: #ddd;
+	font-family: "Rajdhani", sans-serif;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	text-align: center;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.export-btn:hover {
+	background: #242424;
+	border-color: #666;
+	color: #fff;
+}
+
+.export-btn:active {
+	background: #2c2c2c;
+}
+
 @media (max-width: 900px) {
 	#panel {
 		left: 12px;
 		right: 12px;
-		bottom: 12px;
+		bottom: 84px;
 		top: auto;
 		width: auto;
-		max-height: 45vh;
+		max-height: min(45vh, calc(100vh - 150px));
+	}
+
+	#exportBar {
+		left: 10px;
+		right: 10px;
+		bottom: 10px;
+		padding: 7px;
+		gap: 6px;
+	}
+
+	#exportBar .export-btn {
+		font-size: 0.82rem;
+		padding: 7px 8px;
 	}
 }
