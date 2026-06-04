@@ -31,7 +31,7 @@ const PARAM_DEFAULTS = {
 };
 
 const LIMITS = {
-    fs: [32, 280], ls: [-50, 300], fw: [100, 900], mt: [0, 180], mr: [0, 500], mb: [0, 180], ml: [0, 500],
+    fs: [32, 1120], ls: [-50, 300], fw: [100, 900], mt: [0, 180], mr: [0, 500], mb: [0, 180], ml: [0, 500],
     shininess: [0, 100], width: [4, 20], height: [0.4, 4], depth: [0.08, 1.2], bendAngle: [0, 120], cornerRadius: [0, 2],
     bandThickness: [0.05, 0.8], bandLength: [1.1, 2.5], bandMetalness: [0, 1]
 };
