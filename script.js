@@ -841,6 +841,21 @@ const _fontCache = {};
 // Regex matching the first font file URL in a Google Fonts CSS response (woff2/woff/ttf/otf)
 const GOOGLE_FONT_URL_RE = /url\(['"]?(https:\/\/fonts\.gstatic\.com[^'"\)]+\.(?:woff2|woff|ttf|otf))['"]?\)/i;
 
+// WOFF2 file signature bytes: 'w', 'O', 'F', '2' (0x774F4632)
+const WOFF2_SIGNATURE = [0x77, 0x4F, 0x46, 0x32];
+
+// Lazy-loaded WOFF2 decoder (opentype.js does not support WOFF2; modern browsers always receive
+// WOFF2 from Google Fonts, so we decompress to TTF before parsing).
+let _wawoff2 = null;
+async function decompressWoff2(buffer) {
+    if (!_wawoff2) {
+        const m = await import("https://esm.sh/wawoff2@2.0.1");
+        _wawoff2 = m.default ?? m;
+    }
+    const ttf = await _wawoff2.decompress(new Uint8Array(buffer));
+    return ttf.buffer;
+}
+
 async function loadFontForExport(fontFamily, fontWeight) {
     const key = `${fontFamily}:${fontWeight}`;
     if (_fontCache[key]) { return _fontCache[key]; }
@@ -856,7 +871,12 @@ async function loadFontForExport(fontFamily, fontWeight) {
     const fontUrl = match[1];
     const fontResp = await fetch(fontUrl);
     if (!fontResp.ok) { throw new Error(`Could not fetch font file for "${clean}"`); }
-    const buffer = await fontResp.arrayBuffer();
+    let buffer = await fontResp.arrayBuffer();
+    // Detect WOFF2 signature and decompress to TTF for opentype.js
+    const sig = new Uint8Array(buffer, 0, WOFF2_SIGNATURE.length);
+    if (WOFF2_SIGNATURE.every((b, i) => sig[i] === b)) {
+        buffer = await decompressWoff2(buffer);
+    }
     const font = opentype.parse(buffer);
     _fontCache[key] = font;
     return font;
