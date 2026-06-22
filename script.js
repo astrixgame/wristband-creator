@@ -7,6 +7,7 @@ const opentype = _ot.default || _ot;
 
 const DEFAULT_BEND_ANGLE = Number(((10 / 34) * (180 / Math.PI)).toFixed(2));
 const FONT_OPTIONS = ["Orbitron", "Cinzel", "Rajdhani", "Montserrat", "Oswald", "Playfair Display", "Bebas Neue"];
+const VALID_FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const MATERIAL_PRESETS = { silver: "#c6ccd1", gold: "#cda349" };
 const CORNER_MODES = ["none", "all", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
 const BG_SOLID = { black: "#000000", midnight: "#04080f", charcoal: "#1a1a1a", navy: "#050f1a", "warm-dark": "#100a03", "studio-gray": "#252525" };
@@ -815,18 +816,20 @@ function exportDepthMap(side) {
 // ---- Font-to-vector helpers ----
 const _fontCache = {};
 
+// Regex matching the first font file URL in a Google Fonts CSS response (woff2/woff/ttf/otf)
+const GOOGLE_FONT_URL_RE = /url\(['"]?(https:\/\/fonts\.gstatic\.com[^'"\)]+\.(?:woff2|woff|ttf|otf))['"]?\)/i;
+
 async function loadFontForExport(fontFamily, fontWeight) {
     const key = `${fontFamily}:${fontWeight}`;
     if (_fontCache[key]) { return _fontCache[key]; }
     const clean = sanitizeFontFamily(fontFamily);
     const weight = Number(fontWeight);
-    const safeWeight = [100, 200, 300, 400, 500, 600, 700, 800, 900].includes(weight) ? weight : 400;
+    const safeWeight = VALID_FONT_WEIGHTS.includes(weight) ? weight : 400;
     const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(clean)}:wght@${safeWeight}&display=swap`;
     const cssResp = await fetch(cssUrl);
     if (!cssResp.ok) { throw new Error(`Could not fetch font CSS for "${clean}"`); }
     const css = await cssResp.text();
-    // Match the first font file URL served by Google Fonts (woff2 / woff / ttf / otf)
-    const match = css.match(/url\(['"]?(https:\/\/fonts\.gstatic\.com[^'"\)]+\.(?:woff2|woff|ttf|otf))['"]?\)/i);
+    const match = css.match(GOOGLE_FONT_URL_RE);
     if (!match) { throw new Error(`No font file URL found in CSS for "${clean}"`); }
     const fontUrl = match[1];
     const fontResp = await fetch(fontUrl);
@@ -840,13 +843,13 @@ async function loadFontForExport(fontFamily, fontWeight) {
 function buildTextPathData(font, text, cx, cy, fontSize, letterSpacing) {
     if (!text) { return ""; }
     const scale = fontSize / font.unitsPerEm;
-    // Vertically center text at cy using ascender/descender
-    const baselineY = cy + (font.ascender + font.descender) / 2 * scale;
-    // Horizontally center: measure total advance (opentype adds letterSpacing after every glyph)
+    // Place the baseline so the text is vertically centered at cy.
+    const baselineY = cy + ((font.ascender + font.descender) / 2) * scale;
+    // opentype.js adds letterSpacing after every glyph (including the last), so the total
+    // advance is: sum(advanceWidths)*scale + n*letterSpacing. Shift right by half a
+    // letterSpacing to compensate for that trailing extra spacing and keep text centred.
     const glyphs = font.stringToGlyphs(text);
-    let totalWidth = 0;
-    glyphs.forEach((g) => { totalWidth += (g.advanceWidth || 0) * scale + letterSpacing; });
-    // Shift back half a letterSpacing for the trailing extra spacing
+    const totalWidth = glyphs.reduce((sum, g) => sum + (g.advanceWidth || 0) * scale + letterSpacing, 0);
     const startX = cx - totalWidth / 2 + letterSpacing / 2;
     const path = font.getPath(text, startX, baselineY, fontSize, { letterSpacing });
     return path.toPathData(2);
