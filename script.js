@@ -2,6 +2,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.m
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/environments/RoomEnvironment.js";
 import * as _ot from "https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.module.js";
+import { PDFDocument, rgb } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.esm.js";
 const opentype = _ot.default || _ot;
 
 const DEFAULT_BEND_ANGLE = Number(((10 / 34) * (180 / Math.PI)).toFixed(2));
@@ -818,10 +819,13 @@ async function loadFontForExport(fontFamily, fontWeight) {
     const key = `${fontFamily}:${fontWeight}`;
     if (_fontCache[key]) { return _fontCache[key]; }
     const clean = sanitizeFontFamily(fontFamily);
-    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(clean)}:wght@${fontWeight}&display=swap`;
+    const weight = Number(fontWeight);
+    const safeWeight = [100, 200, 300, 400, 500, 600, 700, 800, 900].includes(weight) ? weight : 400;
+    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(clean)}:wght@${safeWeight}&display=swap`;
     const cssResp = await fetch(cssUrl);
     if (!cssResp.ok) { throw new Error(`Could not fetch font CSS for "${clean}"`); }
     const css = await cssResp.text();
+    // Match the first font file URL served by Google Fonts (woff2 / woff / ttf / otf)
     const match = css.match(/url\(['"]?(https:\/\/fonts\.gstatic\.com[^'"\)]+\.(?:woff2|woff|ttf|otf))['"]?\)/i);
     if (!match) { throw new Error(`No font file URL found in CSS for "${clean}"`); }
     const fontUrl = match[1];
@@ -890,15 +894,32 @@ async function exportSVG(side) {
 
 async function exportPDF() {
     try {
-        const { jsPDF } = window.jspdf;
         const W = 4096, H = 512;
-        const doc = new jsPDF({ orientation: "landscape", unit: "px", format: [W, H] });
-        const frontSvg = await buildSideForExport("front");
-        await doc.svg(frontSvg, { x: 0, y: 0, width: W, height: H });
-        doc.addPage([W, H], "landscape");
-        const backSvg = await buildSideForExport("back");
-        await doc.svg(backSvg, { x: 0, y: 0, width: W, height: H });
-        doc.save("wristband.pdf");
+        const pdfDoc = await PDFDocument.create();
+
+        for (const side of ["front", "back"]) {
+            const s = state[side];
+            const uw = Math.max(32, W - s.ml - s.mr);
+            const uh = Math.max(32, H - s.mt - s.mb);
+            const cx = s.ml + uw / 2;
+            const cy = s.mt + uh / 2;
+            const text = applyTextTransform(s.text, s.tt);
+            const font = await loadFontForExport(s.font, s.fw);
+            const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
+
+            const page = pdfDoc.addPage([W, H]);
+            // Black background
+            page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
+            // Text as white vector paths.
+            // pdf-lib uses bottom-left origin with y increasing upward; SVG uses top-left with
+            // y increasing downward. Passing x:0, y:H flips the coordinate system to match SVG.
+            if (pathData) {
+                page.drawSvgPath(pathData, { x: 0, y: H, color: rgb(1, 1, 1) });
+            }
+        }
+
+        const bytes = await pdfDoc.save();
+        downloadBlob(new Blob([bytes], { type: "application/pdf" }), "wristband.pdf");
     } catch (err) {
         console.error("PDF export failed:", err);
         alert(`PDF export failed: ${err.message}`);
