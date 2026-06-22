@@ -813,6 +813,28 @@ function exportDepthMap(side) {
     createDepthMapCanvas(side).toBlob((blob) => { if (blob) { downloadBlob(blob, `depth-map-${side}.png`); } }, "image/png");
 }
 
+async function preloadFontForCanvas(fontFamily, fontWeight, fontStyle) {
+    if (!document.fonts?.load) { return; }
+    const clean = sanitizeFontFamily(fontFamily);
+    const descriptors = [
+        `${fontStyle || "normal"} ${fontWeight || 400} 64px "${clean}"`,
+        `normal ${fontWeight || 400} 64px "${clean}"`,
+        `${fontStyle || "normal"} 400 64px "${clean}"`
+    ];
+    await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch((err) => {
+        console.warn(`Font preload failed for "${clean}" with descriptor "${descriptor}". Canvas rendering may use fallback fonts.`, err);
+        return undefined;
+    })));
+}
+
+async function buildPdfFallbackImage(pdfDoc, side) {
+    const s = state[side];
+    await preloadFontForCanvas(s.font, s.fw, s.fst);
+    const blob = await new Promise((resolve) => createDepthMapCanvas(side).toBlob(resolve, "image/png"));
+    if (!blob) { throw new Error(`Failed to generate a PNG from the fallback canvas for ${side}.`); }
+    return pdfDoc.embedPng(await blob.arrayBuffer());
+}
+
 // ---- Font-to-vector helpers ----
 const _fontCache = {};
 
@@ -901,23 +923,28 @@ async function exportPDF() {
         const pdfDoc = await PDFDocument.create();
 
         for (const side of ["front", "back"]) {
-            const s = state[side];
-            const uw = Math.max(32, W - s.ml - s.mr);
-            const uh = Math.max(32, H - s.mt - s.mb);
-            const cx = s.ml + uw / 2;
-            const cy = s.mt + uh / 2;
-            const text = applyTextTransform(s.text, s.tt);
-            const font = await loadFontForExport(s.font, s.fw);
-            const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
-
             const page = pdfDoc.addPage([W, H]);
-            // Black background
             page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
-            // Text as white vector paths.
-            // pdf-lib uses bottom-left origin with y increasing upward; SVG uses top-left with
-            // y increasing downward. Passing x:0, y:H flips the coordinate system to match SVG.
-            if (pathData) {
-                page.drawSvgPath(pathData, { x: 0, y: H, color: rgb(1, 1, 1) });
+            try {
+                const s = state[side];
+                const uw = Math.max(32, W - s.ml - s.mr);
+                const uh = Math.max(32, H - s.mt - s.mb);
+                const cx = s.ml + uw / 2;
+                const cy = s.mt + uh / 2;
+                const text = applyTextTransform(s.text, s.tt);
+                const font = await loadFontForExport(s.font, s.fw);
+                const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
+
+                // Text as white vector paths.
+                // pdf-lib uses bottom-left origin with y increasing upward; SVG uses top-left with
+                // y increasing downward. Passing x:0, y:H flips the coordinate system to match SVG.
+                if (pathData) {
+                    page.drawSvgPath(pathData, { x: 0, y: H, color: rgb(1, 1, 1) });
+                }
+            } catch (fontErr) {
+                console.warn(`Falling back to raster PDF export for ${side}:`, fontErr);
+                const png = await buildPdfFallbackImage(pdfDoc, side);
+                page.drawImage(png, { x: 0, y: 0, width: W, height: H });
             }
         }
 
