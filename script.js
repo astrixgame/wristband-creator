@@ -821,14 +821,14 @@ async function ensureFontReadyForCanvas(fontFamily, fontWeight, fontStyle) {
         `normal ${fontWeight || 400} 64px "${clean}"`,
         `${fontStyle || "normal"} 400 64px "${clean}"`
     ];
-    await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch(() => [])));
+    await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch(() => undefined)));
 }
 
 async function buildPdfFallbackImage(pdfDoc, side) {
     const s = state[side];
     await ensureFontReadyForCanvas(s.font, s.fw, s.fst);
     const blob = await new Promise((resolve) => createDepthMapCanvas(side).toBlob(resolve, "image/png"));
-    if (!blob) { throw new Error("Could not render fallback PDF image"); }
+    if (!blob) { throw new Error(`Could not render fallback PDF image for ${side}`); }
     return pdfDoc.embedPng(await blob.arrayBuffer());
 }
 
