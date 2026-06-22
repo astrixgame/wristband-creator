@@ -822,7 +822,7 @@ async function preloadFontForCanvas(fontFamily, fontWeight, fontStyle) {
         `${fontStyle || "normal"} 400 64px "${clean}"`
     ];
     await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch((err) => {
-        console.warn(`PDF fallback font preload failed for "${clean}" using descriptor "${descriptor}". PDF export will continue with the browser's current font state, which may reduce text fidelity.`, err);
+        console.warn(`Font preload failed for "${clean}" with descriptor "${descriptor}". PDF export will use the browser's current font state.`, err);
         return undefined;
     })));
 }
@@ -831,7 +831,7 @@ async function buildPdfFallbackImage(pdfDoc, side) {
     const s = state[side];
     await preloadFontForCanvas(s.font, s.fw, s.fst);
     const blob = await new Promise((resolve) => createDepthMapCanvas(side).toBlob(resolve, "image/png"));
-    if (!blob) { throw new Error(`Canvas toBlob() returned null while building the fallback PDF image for ${side}. The browser could not encode the canvas as PNG.`); }
+    if (!blob) { throw new Error(`Failed to generate a PNG from the fallback canvas for ${side}.`); }
     return pdfDoc.embedPng(await blob.arrayBuffer());
 }
 
@@ -924,6 +924,7 @@ async function exportPDF() {
 
         for (const side of ["front", "back"]) {
             const page = pdfDoc.addPage([W, H]);
+            page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
             try {
                 const s = state[side];
                 const uw = Math.max(32, W - s.ml - s.mr);
@@ -934,8 +935,6 @@ async function exportPDF() {
                 const font = await loadFontForExport(s.font, s.fw);
                 const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
 
-                // Black background
-                page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
                 // Text as white vector paths.
                 // pdf-lib uses bottom-left origin with y increasing upward; SVG uses top-left with
                 // y increasing downward. Passing x:0, y:H flips the coordinate system to match SVG.
@@ -944,7 +943,6 @@ async function exportPDF() {
                 }
             } catch (fontErr) {
                 console.warn(`Falling back to raster PDF export for ${side}:`, fontErr);
-                page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
                 const png = await buildPdfFallbackImage(pdfDoc, side);
                 page.drawImage(png, { x: 0, y: 0, width: W, height: H });
             }
