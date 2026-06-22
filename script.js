@@ -821,14 +821,17 @@ async function ensureFontReadyForCanvas(fontFamily, fontWeight, fontStyle) {
         `normal ${fontWeight || 400} 64px "${clean}"`,
         `${fontStyle || "normal"} 400 64px "${clean}"`
     ];
-    await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch(() => undefined)));
+    await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch((err) => {
+        console.warn(`PDF fallback font preload failed for "${clean}" using descriptor "${descriptor}"`, err);
+        return undefined;
+    })));
 }
 
 async function buildPdfFallbackImage(pdfDoc, side) {
     const s = state[side];
     await ensureFontReadyForCanvas(s.font, s.fw, s.fst);
     const blob = await new Promise((resolve) => createDepthMapCanvas(side).toBlob(resolve, "image/png"));
-    if (!blob) { throw new Error(`Could not render fallback PDF image for ${side}`); }
+    if (!blob) { throw new Error(`Canvas toBlob() returned null for fallback PDF image on ${side}`); }
     return pdfDoc.embedPng(await blob.arrayBuffer());
 }
 
