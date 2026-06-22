@@ -822,7 +822,7 @@ async function preloadFontForCanvas(fontFamily, fontWeight, fontStyle) {
         `${fontStyle || "normal"} 400 64px "${clean}"`
     ];
     await Promise.all(descriptors.map((descriptor) => document.fonts.load(descriptor).catch((err) => {
-        console.warn(`Font preload failed for "${clean}" with descriptor "${descriptor}". PDF export will use the browser's current font state.`, err);
+        console.warn(`Font preload failed for "${clean}" with descriptor "${descriptor}". Canvas rendering may use fallback fonts.`, err);
         return undefined;
     })));
 }
