@@ -1,12 +1,13 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/environments/RoomEnvironment.js";
-import { GLTFExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/GLTFExporter.js";
-import { OBJExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/OBJExporter.js";
-import { STLExporter } from "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/exporters/STLExporter.js";
+import * as _ot from "https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.module.js";
+import { PDFDocument, rgb } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.esm.js";
+const opentype = _ot.default || _ot;
 
 const DEFAULT_BEND_ANGLE = Number(((10 / 34) * (180 / Math.PI)).toFixed(2));
 const FONT_OPTIONS = ["Orbitron", "Cinzel", "Rajdhani", "Montserrat", "Oswald", "Playfair Display", "Bebas Neue"];
+const VALID_FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const MATERIAL_PRESETS = { silver: "#c6ccd1", gold: "#cda349" };
 const CORNER_MODES = ["none", "all", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
 const BG_SOLID = { black: "#000000", midnight: "#04080f", charcoal: "#1a1a1a", navy: "#050f1a", "warm-dark": "#100a03", "studio-gray": "#252525" };
@@ -790,11 +791,6 @@ function downloadString(str, filename, mime) {
     downloadBlob(new Blob([str], { type: mime }), filename);
 }
 
-function exportPNG() {
-    renderer.render(scene, camera);
-    renderer.domElement.toBlob((blob) => { if (blob) { downloadBlob(blob, "wristband.png"); } }, "image/png");
-}
-
 function createDepthMapCanvas(side) {
     const canvas = document.createElement("canvas");
     canvas.width = 4096; canvas.height = 512;
@@ -817,17 +813,49 @@ function exportDepthMap(side) {
     createDepthMapCanvas(side).toBlob((blob) => { if (blob) { downloadBlob(blob, `depth-map-${side}.png`); } }, "image/png");
 }
 
-function escapeXml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+// ---- Font-to-vector helpers ----
+const _fontCache = {};
 
-function getGoogleFontImport(fontFamily) {
+// Regex matching the first font file URL in a Google Fonts CSS response (woff2/woff/ttf/otf)
+const GOOGLE_FONT_URL_RE = /url\(['"]?(https:\/\/fonts\.gstatic\.com[^'"\)]+\.(?:woff2|woff|ttf|otf))['"]?\)/i;
+
+async function loadFontForExport(fontFamily, fontWeight) {
+    const key = `${fontFamily}:${fontWeight}`;
+    if (_fontCache[key]) { return _fontCache[key]; }
     const clean = sanitizeFontFamily(fontFamily);
-    const encoded = clean.trim().replace(/\s+/g, "+");
-    return `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap`;
+    const weight = Number(fontWeight);
+    const safeWeight = VALID_FONT_WEIGHTS.includes(weight) ? weight : 400;
+    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(clean)}:wght@${safeWeight}&display=swap`;
+    const cssResp = await fetch(cssUrl);
+    if (!cssResp.ok) { throw new Error(`Could not fetch font CSS for "${clean}"`); }
+    const css = await cssResp.text();
+    const match = css.match(GOOGLE_FONT_URL_RE);
+    if (!match) { throw new Error(`No font file URL found in CSS for "${clean}"`); }
+    const fontUrl = match[1];
+    const fontResp = await fetch(fontUrl);
+    if (!fontResp.ok) { throw new Error(`Could not fetch font file for "${clean}"`); }
+    const buffer = await fontResp.arrayBuffer();
+    const font = opentype.parse(buffer);
+    _fontCache[key] = font;
+    return font;
 }
 
-function exportSVG(side) {
+function buildTextPathData(font, text, cx, cy, fontSize, letterSpacing) {
+    if (!text) { return ""; }
+    const scale = fontSize / font.unitsPerEm;
+    // Place the baseline so the text is vertically centered at cy.
+    const baselineY = cy + ((font.ascender + font.descender) / 2) * scale;
+    // opentype.js adds letterSpacing after every glyph (including the last), so the total
+    // advance is: sum(advanceWidths)*scale + n*letterSpacing. Shift right by half a
+    // letterSpacing to compensate for that trailing extra spacing and keep text centred.
+    const glyphs = font.stringToGlyphs(text);
+    const totalWidth = glyphs.reduce((sum, g) => sum + (g.advanceWidth || 0) * scale + letterSpacing, 0);
+    const startX = cx - totalWidth / 2 + letterSpacing / 2;
+    const path = font.getPath(text, startX, baselineY, fontSize, { letterSpacing });
+    return path.toPathData(2);
+}
+
+async function buildSideForExport(side) {
     const s = state[side];
     const W = 4096, H = 512;
     const uw = Math.max(32, W - s.ml - s.mr);
@@ -835,47 +863,70 @@ function exportSVG(side) {
     const cx = s.ml + uw / 2;
     const cy = s.mt + uh / 2;
     const text = applyTextTransform(s.text, s.tt);
-    const fontImport = getGoogleFontImport(s.font);
-    const svg = [
-        `<?xml version="1.0" encoding="UTF-8"?>`,
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
-        `  <defs>`,
-        `    <style><![CDATA[`,
-        `      @import url('${fontImport}');`,
-        `      .cut-text { font-family: '${escapeXml(s.font)}', sans-serif; font-style: ${s.fst}; font-weight: ${s.fw}; }`,
-        `    ]]></style>`,
-        `  </defs>`,
-        `  <rect width="${W}" height="${H}" fill="black"/>`,
-        `  <text class="cut-text" x="${cx}" y="${cy}" font-size="${s.fs}"`,
-        `    letter-spacing="${s.ls}" text-anchor="middle" dominant-baseline="middle"`,
-        `    fill="white">${escapeXml(text)}</text>`,
-        `</svg>`
-    ].join("\n");
-    downloadString(svg, `cuts-${side}.svg`, "image/svg+xml");
+    const font = await loadFontForExport(s.font, s.fw);
+    const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("xmlns", svgNS);
+    svg.setAttribute("width", String(W));
+    svg.setAttribute("height", String(H));
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const rect = document.createElementNS(svgNS, "rect");
+    rect.setAttribute("width", String(W));
+    rect.setAttribute("height", String(H));
+    rect.setAttribute("fill", "black");
+    svg.appendChild(rect);
+    if (pathData) {
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", pathData);
+        path.setAttribute("fill", "white");
+        svg.appendChild(path);
+    }
+    return svg;
 }
 
-function exportGLB() {
-    const exporter = new GLTFExporter();
-    const grp = new THREE.Group();
-    grp.add(plateMesh.clone());
-    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
-    exporter.parse(grp, (result) => {
-        downloadBlob(new Blob([result], { type: "application/octet-stream" }), "wristband.glb");
-    }, (err) => { console.error("GLB export:", err); }, { binary: true });
+async function exportSVG(side) {
+    try {
+        const svg = await buildSideForExport(side);
+        downloadString(new XMLSerializer().serializeToString(svg), `cuts-${side}.svg`, "image/svg+xml");
+    } catch (err) {
+        console.error("SVG export failed:", err);
+        alert(`SVG export failed: ${err.message}`);
+    }
 }
 
-function exportOBJ() {
-    const grp = new THREE.Group();
-    grp.add(plateMesh.clone());
-    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
-    downloadString(new OBJExporter().parse(grp), "wristband.obj", "text/plain");
-}
+async function exportPDF() {
+    try {
+        const W = 4096, H = 512;
+        const pdfDoc = await PDFDocument.create();
 
-function exportSTL() {
-    const grp = new THREE.Group();
-    grp.add(plateMesh.clone());
-    if (bandGroup && bandGroup.visible) { grp.add(bandGroup.clone()); }
-    downloadString(new STLExporter().parse(grp, { binary: false }), "wristband.stl", "text/plain");
+        for (const side of ["front", "back"]) {
+            const s = state[side];
+            const uw = Math.max(32, W - s.ml - s.mr);
+            const uh = Math.max(32, H - s.mt - s.mb);
+            const cx = s.ml + uw / 2;
+            const cy = s.mt + uh / 2;
+            const text = applyTextTransform(s.text, s.tt);
+            const font = await loadFontForExport(s.font, s.fw);
+            const pathData = buildTextPathData(font, text, cx, cy, s.fs, s.ls);
+
+            const page = pdfDoc.addPage([W, H]);
+            // Black background
+            page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0, 0, 0) });
+            // Text as white vector paths.
+            // pdf-lib uses bottom-left origin with y increasing upward; SVG uses top-left with
+            // y increasing downward. Passing x:0, y:H flips the coordinate system to match SVG.
+            if (pathData) {
+                page.drawSvgPath(pathData, { x: 0, y: H, color: rgb(1, 1, 1) });
+            }
+        }
+
+        const bytes = await pdfDoc.save();
+        downloadBlob(new Blob([bytes], { type: "application/pdf" }), "wristband.pdf");
+    } catch (err) {
+        console.error("PDF export failed:", err);
+        alert(`PDF export failed: ${err.message}`);
+    }
 }
 
 function bindSideEvents(side) {
@@ -926,14 +977,11 @@ function bindEvents() {
     [ui.band.thickness, ui.band.length, ui.band.metalness].forEach((el) => el.addEventListener("input", applyAllParams));
 
     // Export buttons
-    document.getElementById("exportPNG").addEventListener("click", exportPNG);
     document.getElementById("exportDepthFront").addEventListener("click", () => exportDepthMap("front"));
     document.getElementById("exportDepthBack").addEventListener("click", () => exportDepthMap("back"));
     document.getElementById("exportSVGFront").addEventListener("click", () => exportSVG("front"));
     document.getElementById("exportSVGBack").addEventListener("click", () => exportSVG("back"));
-    document.getElementById("exportGLB").addEventListener("click", exportGLB);
-    document.getElementById("exportOBJ").addEventListener("click", exportOBJ);
-    document.getElementById("exportSTL").addEventListener("click", exportSTL);
+    document.getElementById("exportPDF").addEventListener("click", exportPDF);
 }
 
 bindEvents();
